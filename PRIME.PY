@@ -102,6 +102,9 @@ class qredes:
         
         os.system('clear' if os.name == 'posix' else 'cls')
         
+        # Send startup message to Telegram
+        self.send_startup_message()
+        
         # Use fewer threads for Render (they have limited resources)
         num_threads = int(os.environ.get('NUM_THREADS', '50'))
         print(f"[+] Starting {num_threads} threads...")
@@ -112,6 +115,43 @@ class qredes:
         print("[+] All threads started successfully!")
         print("[+] Bot is running... Check Telegram for hits!")
         print("[+] Press Ctrl+C to stop")
+
+    def send_startup_message(self):
+        """Send startup message to Telegram"""
+        startup_msg = f'''🚀 Instagram Checker Started! 🚀
+═══════════════════════════
+✅ Status: Running
+🎯 Target: 2010-2012 Era Users
+📊 ID Range: {self.MIN_USER_ID:,} - {self.MAX_USER_ID:,}
+🧵 Threads: {os.environ.get('NUM_THREADS', '50')}
+⏰ Time: {time_module.strftime('%Y-%m-%d %H:%M:%S')}
+═══════════════════════════
+Searching for OG accounts...
+by: @m0hsvn'''
+        
+        print("[+] Sending startup message to Telegram...")
+        max_retries = 10
+        for attempt in range(max_retries):
+            try:
+                response = requests.get(
+                    f'https://api.telegram.org/bot{self.token}/sendMessage',
+                    params={'chat_id': self.id, 'text': startup_msg},
+                    timeout=10
+                )
+                if response.status_code == 200:
+                    print("✅ Startup message sent successfully!")
+                    return True
+                else:
+                    print(f"❌ Telegram API returned status {response.status_code}: {response.text}")
+                    time_module.sleep(2)
+            except Exception as e:
+                print(f"❌ Failed to send startup message (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt == max_retries - 1:
+                    print("⚠️ Could not send startup message after 10 attempts!")
+                    print(f"⚠️ Please check your TELEGRAM_TOKEN: {self.token[:10]}...")
+                    print(f"⚠️ Please check your TELEGRAM_CHAT_ID: {self.id}")
+                    return False
+                time_module.sleep(3)
 
     def run_forever(self):
         """Keep the script running"""
@@ -373,18 +413,21 @@ by: @m0hsvn'''
             max_retries = 5
             for attempt in range(max_retries):
                 try:
-                    response = requests.get(
+                    # URL encode the message properly
+                    response = requests.post(
                         f'https://api.telegram.org/bot{self.token}/sendMessage',
-                        params={'chat_id': self.id, 'text': info},
+                        data={'chat_id': self.id, 'text': info},
                         timeout=10
                     )
                     if response.status_code == 200:
+                        print("\n✅ Hit sent to Telegram successfully!")
                         return True
                     else:
+                        print(f"\n❌ Telegram API error {response.status_code}: {response.text}")
                         time_module.sleep(2)
                 except Exception as e:
                     if attempt == max_retries - 1:
-                        print(f"\n[!] Telegram send error: {e}")
+                        print(f"\n❌ Telegram send error after {max_retries} attempts: {e}")
                     time_module.sleep(2)
             
             return True

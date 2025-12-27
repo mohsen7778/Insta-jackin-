@@ -1,10 +1,15 @@
 services:
   - type: web
-    name: aol-account-finder
-    env: docker
-    plan: free
-    dockerfilePath: ./Dockerfile
-    healthCheckPath: /
+    name: instagram-checker
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python Arman_newfile.py
     envVars:
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: NUM_THREADS
+        value: "30"
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: "3.11.0"

